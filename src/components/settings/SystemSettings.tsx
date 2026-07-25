@@ -114,7 +114,7 @@ export const SystemSettings: React.FC = () => {
       timestamp: new Date().toISOString(),
       formattedDate: new Date().toLocaleString(),
       exportedBy: currentUser ? `${currentUser.name} (${currentUser.roleName})` : "Super Admin",
-      branch: currentBranch.name,
+      branch: currentBranch?.name || "Main Branch",
       currency: `${settings.currencyCode} (${settings.currencySymbol})`,
       data: {
         medicines,
@@ -538,7 +538,7 @@ export const SystemSettings: React.FC = () => {
                         <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-300">{c.name}</td>
                         <td className="p-3.5 font-mono font-bold text-emerald-600 text-sm">{c.symbol}</td>
                         <td className="p-3.5 font-mono text-slate-600 dark:text-slate-400">
-                          1 {c.code} = {c.rateAgainstNGN.toLocaleString()} NGN
+                          1 {c.code} = {(c.rateAgainstNGN ?? 1).toLocaleString()} NGN
                         </td>
                         <td className="p-3.5 text-right">
                           <button

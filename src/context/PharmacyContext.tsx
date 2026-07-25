@@ -204,19 +204,22 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Multi-Currency Formatter Helper
   const formatCurrency = (amount: number): string => {
-    const activeCurr = settings.currencies?.find((c) => c.code === settings.currencyCode) || {
+    const safeNum = typeof amount === "number" && !isNaN(amount) ? amount : Number(amount) || 0;
+    const activeCurr = settings?.currencies?.find((c) => c.code === settings?.currencyCode) || {
       code: "NGN",
       symbol: "₦",
       rateAgainstNGN: 1.0,
     };
 
-    let convertedAmount = amount;
+    let convertedAmount = safeNum;
     if (activeCurr.code !== "NGN") {
       // If code is foreign currency, rateAgainstNGN gives NGN value per 1 foreign currency unit (e.g., 1550 NGN per $1 USD)
-      convertedAmount = amount / (activeCurr.rateAgainstNGN || 1);
+      convertedAmount = safeNum / (activeCurr.rateAgainstNGN || 1);
     }
 
-    return `${activeCurr.symbol}${convertedAmount.toLocaleString("en-US", {
+    const finalNum = typeof convertedAmount === "number" && !isNaN(convertedAmount) ? convertedAmount : 0;
+
+    return `${activeCurr.symbol || "₦"}${finalNum.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;

@@ -1,0 +1,299 @@
+export type UserRole = 
+  | "Super Admin"
+  | "Branch Manager"
+  | "Pharmacist"
+  | "Cashier"
+  | "Inventory Officer"
+  | "Accountant"
+  | "Doctor"
+  | "Customer"
+  | string;
+
+export type PermissionKey =
+  | "pos_sales"
+  | "inventory_manage"
+  | "price_override"
+  | "prescriptions_manage"
+  | "purchases_manage"
+  | "customers_manage"
+  | "financials_view"
+  | "analytics_view"
+  | "reports_export"
+  | "multi_branch_switch"
+  | "system_settings_manage"
+  | "roles_permissions_manage"
+  | "user_management";
+
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  isSystemRole: boolean;
+  permissions: PermissionKey[];
+}
+
+export interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  roleId: string;
+  roleName: string;
+  branchId: string;
+  branchName: string;
+  pin: string;
+  avatar?: string;
+  status: "Active" | "Inactive";
+  lastActive?: string;
+}
+
+export interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
+  rateAgainstNGN: number;
+  isDefault?: boolean;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+  phone: string;
+  isMain: boolean;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  balance: number;
+  rating: number; // 1-5
+  totalPurchases: number;
+}
+
+export interface BatchInfo {
+  batchNumber: string;
+  mfgDate: string;
+  expiryDate: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  quantity: number;
+  supplierId: string;
+}
+
+export interface Medicine {
+  id: string;
+  name: string;
+  genericName: string;
+  brandName: string;
+  category: string;
+  manufacturer: string;
+  strength: string; // e.g., "500mg"
+  dosageForm: string; // e.g., "Tablet", "Syrup", "Injection", "Capsule"
+  packSize: string; // e.g., "10x10 Strip", "100ml Bottle"
+  sku: string;
+  barcode: string;
+  qrCode?: string;
+  image?: string;
+  batches: BatchInfo[];
+  supplierId: string;
+  supplierName: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  wholesalePrice: number;
+  taxPercent: number;
+  discountPercent: number;
+  stock: number;
+  minStock: number;
+  maxStock: number;
+  location: string; // Shelf / Rack e.g. "Aisle 3 - Shelf B"
+  storageTemperature: string; // e.g. "15-25°C", "2-8°C Refrigerated"
+  prescriptionRequired: boolean;
+  isControlledDrug: boolean;
+  status: "Active" | "Discontinued" | "Out of Stock";
+  branchId: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  itemCount: number;
+}
+
+export interface PosCartItem {
+  medicine: Medicine;
+  selectedBatch: string;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalPrice: number;
+}
+
+export interface PosSale {
+  id: string;
+  invoiceNumber: string;
+  date: string;
+  branchId: string;
+  branchName: string;
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  patientId?: string;
+  prescriptionId?: string;
+  cashierName: string;
+  items: {
+    medicineId: string;
+    medicineName: string;
+    genericName: string;
+    dosageForm: string;
+    batchNumber: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }[];
+  subtotal: number;
+  totalDiscount: number;
+  taxAmount: number;
+  grandTotal: number;
+  paymentMethod: "Cash" | "Card" | "Digital Wallet" | "Insurance" | "Split";
+  paymentDetails?: {
+    cashPaid?: number;
+    cardPaid?: number;
+    insuranceApproved?: number;
+    walletPaid?: number;
+    changeGiven?: number;
+  };
+  status: "Completed" | "Returned" | "On Hold";
+  loyaltyPointsEarned: number;
+}
+
+export interface Prescription {
+  id: string;
+  prescriptionNumber: string;
+  date: string;
+  patientId: string;
+  patientName: string;
+  patientAge: number;
+  patientGender: "Male" | "Female" | "Other";
+  doctorName: string;
+  doctorLicense: string;
+  clinicHospital: string;
+  diagnosis: string;
+  medicines: {
+    medicineName: string;
+    dosage: string; // e.g., "500mg"
+    morning: boolean;
+    afternoon: boolean;
+    night: boolean;
+    durationDays: number;
+    instructions: string;
+  }[];
+  status: "Pending" | "Dispensed" | "Cancelled";
+  digitalSignatureUrl?: string;
+  ocrScanned?: boolean;
+}
+
+export interface CustomerPatient {
+  id: string;
+  patientCode: string;
+  name: string;
+  phone: string;
+  email: string;
+  age: number;
+  gender: "Male" | "Female" | "Other";
+  address: string;
+  allergies: string[];
+  medicalHistory: string[];
+  loyaltyPoints: number;
+  walletBalance: number;
+  creditLimit: number;
+  insuranceProvider?: string;
+  insurancePolicyNumber?: string;
+  totalSpent: number;
+  lastVisitDate: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  orderDate: string;
+  expectedDeliveryDate: string;
+  supplierId: string;
+  supplierName: string;
+  branchId: string;
+  items: {
+    medicineName: string;
+    quantity: number;
+    unitCost: number;
+    totalCost: number;
+  }[];
+  totalAmount: number;
+  paidAmount: number;
+  status: "Draft" | "Pending" | "Received" | "Partially Received" | "Cancelled";
+  grnNumber?: string;
+}
+
+export interface StockTransfer {
+  id: string;
+  transferCode: string;
+  date: string;
+  fromBranch: string;
+  toBranch: string;
+  items: {
+    medicineId: string;
+    medicineName: string;
+    batchNumber: string;
+    quantity: number;
+  }[];
+  requestedBy: string;
+  status: "Pending" | "In Transit" | "Completed" | "Rejected";
+}
+
+export interface FinancialRecord {
+  id: string;
+  date: string;
+  type: "Income" | "Expense" | "Payroll" | "Refund";
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  branchId: string;
+  recordedBy: string;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  userName: string;
+  userRole: UserRole;
+  action: string;
+  details: string;
+  ipAddress: string;
+}
+
+export interface AppSettings {
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyTaxId: string;
+  currencySymbol: string;
+  currencyCode: string;
+  currencies: Currency[];
+  timezone: string;
+  defaultTaxRatePercent: number;
+  enableLowStockAlerts: boolean;
+  enableExpiryAlerts: boolean;
+  expiryAlertThresholdDays: number;
+  thermalPrinterWidthMm: number;
+  allowNegativeStock: boolean;
+  securityLockTimeoutMinutes: number;
+}

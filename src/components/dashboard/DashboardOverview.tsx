@@ -2,12 +2,14 @@ import React from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { DashboardSkeleton } from "../ui/ModuleSkeletons";
 import { RbacGuard } from "../auth/RbacGuard";
+import { NearExpiryWidget } from "./NearExpiryWidget";
 import {
   DollarSign,
   Package,
   AlertTriangle,
   Clock,
   Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import {
   AreaChart,
@@ -40,7 +42,19 @@ export const DashboardOverview: React.FC = () => {
   const todaySalesTotal = sales.reduce((acc, s) => acc + s.grandTotal, 0);
   const totalStockValue = medicines.reduce((acc, m) => acc + m.stock * m.purchasePrice, 0);
   const lowStockCount = medicines.filter((m) => m.stock <= m.minStock).length;
-  const pendingRxCount = prescriptions.filter((r) => r.status === "Pending").length;
+  
+  // Calculate Near Expiry Count across batches
+  const todayMs = new Date().getTime();
+  let nearExpiryCount90d = 0;
+  medicines.forEach((m) => {
+    m.batches?.forEach((b) => {
+      const expMs = new Date(b.expiryDate).getTime();
+      const diffDays = Math.ceil((expMs - todayMs) / (1000 * 3600 * 24));
+      if (diffDays <= 90) {
+        nearExpiryCount90d++;
+      }
+    });
+  });
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -78,38 +92,41 @@ export const DashboardOverview: React.FC = () => {
           </p>
         </div>
 
-        {/* Card 3: Low Stock Alerts */}
+        {/* Card 3: Near Expiry Alerts (30, 60, 90 Days) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full uppercase">
+              30/60/90d Scan
+            </span>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Near Expiry Alerts</p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+            {nearExpiryCount90d} Batches
+          </p>
+        </div>
+
+        {/* Card 4: Low Stock Alerts */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-all">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-600 dark:text-red-400">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-950/50 px-2 py-0.5 rounded-full uppercase">
-              Action Required
+              Low Stock
             </span>
           </div>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Low Stock Alerts</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium font-sans font-medium">Low Stock Reorders</p>
           <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
             {lowStockCount} Items
           </p>
         </div>
-
-        {/* Card 4: Prescriptions Pending */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-xl text-orange-600 dark:text-orange-400">
-              <Clock className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-950/50 px-2 py-0.5 rounded-full uppercase">
-              Active Rx
-            </span>
-          </div>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium font-sans">Prescriptions Pending</p>
-          <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
-            {pendingRxCount > 0 ? `${pendingRxCount} Orders` : "32 Orders"}
-          </p>
-        </div>
       </div>
+
+      {/* Daily Near Expiry Scan & Notification Console */}
+      <NearExpiryWidget />
 
       {/* Main Analytics Section: Chart + Dark AI Insights Card */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

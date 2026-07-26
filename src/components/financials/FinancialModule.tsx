@@ -2,17 +2,22 @@ import React, { useState } from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { TableSkeleton } from "../ui/ModuleSkeletons";
 import { RbacGuard } from "../auth/RbacGuard";
+import { ShiftHandoverReport } from "./ShiftHandoverReport";
 import {
   DollarSign,
   TrendingUp,
   TrendingDown,
   Plus,
-  X
+  X,
+  Clock,
+  Receipt,
+  FileText,
 } from "lucide-react";
 
 export const FinancialModule: React.FC = () => {
   const { financials, addFinancialRecord, formatCurrency, isLoading } = usePharmacy();
 
+  const [activeSubTab, setActiveSubTab] = useState<"ledger" | "shift_handover">("shift_handover");
   const [showAddModal, setShowAddModal] = useState(false);
   const [recordType, setRecordType] = useState<"Income" | "Expense" | "Payroll">("Expense");
   const [category, setCategory] = useState("Utilities & Cold Chain Power");
@@ -49,106 +54,141 @@ export const FinancialModule: React.FC = () => {
     <RbacGuard permission="finance_ledger">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <DollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              <span>Financials, Expenses & Shift Closing</span>
+              <span>Financials & Shift Handover</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Real-time P&L summary, operational expense ledgers, payroll logging, and daily register reconciliation.
+              Real-time P&L summary, operational expense ledgers, shift register reconciliation, and cash handover reports.
             </p>
           </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Record Expense / Income</span>
+            </button>
+          </div>
+        </div>
+
+        {/* View Toggle Navigation Tabs */}
+        <div className="p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-1 text-xs font-bold w-full sm:w-auto self-start print:hidden">
           <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+            onClick={() => setActiveSubTab("shift_handover")}
+            className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all ${
+              activeSubTab === "shift_handover"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
           >
-            <Plus className="h-4 w-4" />
-            <span>Record Expense / Income</span>
+            <Clock className="h-4 w-4" />
+            <span>Shift Handover & Register Reconciliation</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab("ledger")}
+            className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all ${
+              activeSubTab === "ledger"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>P&L Financial Ledger</span>
           </button>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Total Income
-            </span>
-            <div className="text-2xl font-extrabold text-emerald-600 flex items-center gap-2">
-              <TrendingUp className="h-6 w-6" />
-              <span>{formatCurrency(totalIncome)}</span>
+        {activeSubTab === "shift_handover" ? (
+          <ShiftHandoverReport />
+        ) : (
+          <>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Total Income
+                </span>
+                <div className="text-2xl font-extrabold text-emerald-600 flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6" />
+                  <span>{formatCurrency(totalIncome)}</span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Operating Expenses & Payroll
+                </span>
+                <div className="text-2xl font-extrabold text-rose-600 flex items-center gap-2">
+                  <TrendingDown className="h-6 w-6" />
+                  <span>{formatCurrency(totalExpenses)}</span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Net Pharmacy Profit
+                </span>
+                <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                  <DollarSign className="h-6 w-6" />
+                  <span>{formatCurrency(netProfit)}</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Operating Expenses & Payroll
-            </span>
-            <div className="text-2xl font-extrabold text-rose-600 flex items-center gap-2">
-              <TrendingDown className="h-6 w-6" />
-              <span>{formatCurrency(totalExpenses)}</span>
+            {/* Financial Ledger Table */}
+            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                  Financial Transactions & Expense Ledger
+                </h3>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="p-4">Date</th>
+                      <th className="p-4">Type</th>
+                      <th className="p-4">Category</th>
+                      <th className="p-4">Description</th>
+                      <th className="p-4">Recorded By</th>
+                      <th className="p-4 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {financials.map((f) => (
+                      <tr key={f.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        <td className="p-4 font-mono font-medium">{f.date}</td>
+                        <td className="p-4">
+                          <span
+                            className={`font-bold px-2.5 py-0.5 rounded-full text-[10px] ${
+                              f.type === "Income"
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : "bg-rose-500/10 text-rose-600"
+                            }`}
+                          >
+                            {f.type}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{f.category}</td>
+                        <td className="p-4 text-slate-600 dark:text-slate-400">{f.description}</td>
+                        <td className="p-4 text-slate-500">{f.recordedBy}</td>
+                        <td className={`p-4 text-right font-extrabold ${f.type === "Income" ? "text-emerald-600" : "text-rose-600"}`}>
+                          {f.type === "Income" ? "+" : "-"}{formatCurrency(f.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Net Pharmacy Profit
-            </span>
-            <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-2">
-              <DollarSign className="h-6 w-6" />
-              <span>{formatCurrency(netProfit)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Financial Ledger Table */}
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Financial Transactions & Expense Ledger
-            </h3>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Type</th>
-                  <th className="p-4">Category</th>
-                  <th className="p-4">Description</th>
-                  <th className="p-4">Recorded By</th>
-                  <th className="p-4 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {financials.map((f) => (
-                  <tr key={f.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="p-4 font-mono font-medium">{f.date}</td>
-                    <td className="p-4">
-                      <span
-                        className={`font-bold px-2.5 py-0.5 rounded-full text-[10px] ${
-                          f.type === "Income"
-                            ? "bg-emerald-500/10 text-emerald-600"
-                            : "bg-rose-500/10 text-rose-600"
-                        }`}
-                      >
-                        {f.type}
-                      </span>
-                    </td>
-                    <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{f.category}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{f.description}</td>
-                    <td className="p-4 text-slate-500">{f.recordedBy}</td>
-                    <td className={`p-4 text-right font-extrabold ${f.type === "Income" ? "text-emerald-600" : "text-rose-600"}`}>
-                      {f.type === "Income" ? "+" : "-"}{formatCurrency(f.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Add Record Modal */}
         {showAddModal && (
@@ -231,3 +271,4 @@ export const FinancialModule: React.FC = () => {
     </RbacGuard>
   );
 };
+

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { UserRole } from "../../types/pharmacy";
+import { SuperAdminPinModal } from "../auth/SuperAdminPinModal";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,7 +23,9 @@ import {
   Activity,
   Menu,
   X,
-  Bot
+  Bot,
+  Clock,
+  Lock,
 } from "lucide-react";
 
 const ALL_ROLES: UserRole[] = [
@@ -47,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
     setActiveTab,
     currentRole,
     setCurrentRole,
+    roles,
     currentBranch,
     setCurrentBranch,
     branches,
@@ -59,6 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [showSuperAdminPinModal, setShowSuperAdminPinModal] = useState(false);
+  const [pendingTargetRole, setPendingTargetRole] = useState<UserRole>("Super Admin");
 
   const lowStockCount = medicines.filter((m) => m.stock <= m.minStock).length;
   const pendingRxCount = prescriptions.filter((r) => r.status === "Pending").length;
@@ -123,6 +129,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
       badge: null,
     },
     {
+      id: "attendance",
+      label: "Staff Attendance & Payroll",
+      icon: Clock,
+      badge: "HR",
+      badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    },
+    {
       id: "settings",
       label: "ERP Settings",
       icon: Settings,
@@ -166,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
       {/* Main Sidebar Container */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out print:hidden ${
           collapsed ? "lg:w-20" : "lg:w-72"
         } w-72 ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -326,20 +339,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
               {isRoleDropdownOpen && (
                 <div className="absolute bottom-12 left-0 right-0 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl py-1 max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50">
-                  {ALL_ROLES.map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        setCurrentRole(role);
-                        setIsRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/70 ${
-                        currentRole === role ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/40" : "text-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      <span>{role}</span>
-                    </button>
-                  ))}
+                  {roles.map((r) => {
+                    const isSuperAdminTarget = r.name === "Super Admin";
+                    const isNonAdminUser = currentRole !== "Super Admin";
+                    const isLockedForUser = isSuperAdminTarget && isNonAdminUser;
+
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          if (isLockedForUser) {
+                            setPendingTargetRole(r.name as UserRole);
+                            setShowSuperAdminPinModal(true);
+                            setIsRoleDropdownOpen(false);
+                          } else {
+                            setCurrentRole(r.name as UserRole);
+                            setIsRoleDropdownOpen(false);
+                          }
+                        }}
+                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/70 ${
+                          currentRole === r.name
+                            ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/40"
+                            : isLockedForUser
+                            ? "text-amber-800 dark:text-amber-300 font-medium"
+                            : "text-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span>{r.name}</span>
+                          {isLockedForUser && <Lock className="h-3 w-3 text-amber-600 shrink-0" />}
+                        </div>
+                        {r.name === "Super Admin" && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                            isLockedForUser
+                              ? "bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300"
+                              : "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300"
+                          }`}>
+                            {isLockedForUser ? "PIN Locked" : "Full"}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -365,6 +406,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
             </button>
           </div>
         </div>
+
+        {/* Super Admin Authorization Modal */}
+        <SuperAdminPinModal
+          isOpen={showSuperAdminPinModal}
+          onClose={() => setShowSuperAdminPinModal(false)}
+          targetRole={pendingTargetRole}
+          onSuccess={() => {
+            setCurrentRole("Super Admin");
+          }}
+        />
       </aside>
     </>
   );

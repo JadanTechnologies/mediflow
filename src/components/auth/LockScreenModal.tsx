@@ -53,6 +53,10 @@ export const LockScreenModal: React.FC = () => {
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Enter staff PIN or select user account to authenticate session
           </p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-900/50 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Idle Timer Security Auto-Lock Active</span>
+          </div>
         </div>
 
         {/* User Selection Pill */}

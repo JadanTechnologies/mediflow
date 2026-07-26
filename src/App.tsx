@@ -14,6 +14,7 @@ import { CustomerPatientModule } from "./components/customers/CustomerPatientMod
 import { FinancialModule } from "./components/financials/FinancialModule";
 import { AiAnalyticsModule } from "./components/analytics/AiAnalyticsModule";
 import { ReportsAndLogs } from "./components/reports/ReportsAndLogs";
+import { AttendanceTrackerModule } from "./components/attendance/AttendanceTrackerModule";
 import { SystemSettings } from "./components/settings/SystemSettings";
 
 const MainLayout: React.FC = () => {
@@ -40,6 +41,8 @@ const MainLayout: React.FC = () => {
         return <AiAnalyticsModule />;
       case "reports":
         return <ReportsAndLogs />;
+      case "attendance":
+        return <AttendanceTrackerModule />;
       case "settings":
         return <SystemSettings />;
       default:

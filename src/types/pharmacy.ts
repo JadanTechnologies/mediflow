@@ -22,7 +22,8 @@ export type PermissionKey =
   | "multi_branch_switch"
   | "system_settings_manage"
   | "roles_permissions_manage"
-  | "user_management";
+  | "user_management"
+  | "attendance_manage";
 
 export interface RoleDefinition {
   id: string;
@@ -76,6 +77,19 @@ export interface Supplier {
   totalPurchases: number;
 }
 
+export interface UnitConversionRule {
+  unitName: string; // e.g., "Box", "Strip", "Pack", "Carton", "Container"
+  conversionMultiplier: number; // Number of base units contained in 1 unit of this (e.g. 1 Strip = 10 Tablets)
+  sellingPrice?: number; // Custom unit price override (if omitted, calculated as basePrice * multiplier)
+  wholesalePrice?: number;
+  barcode?: string;
+}
+
+export interface MedicineUomConfig {
+  baseUnit: string; // e.g. "Tablet", "Capsule", "Sachet", "Bottle", "Ampoule", "Piece", "ml"
+  conversions: UnitConversionRule[];
+}
+
 export interface BatchInfo {
   batchNumber: string;
   mfgDate: string;
@@ -117,6 +131,7 @@ export interface Medicine {
   isControlledDrug: boolean;
   status: "Active" | "Discontinued" | "Out of Stock";
   branchId: string;
+  uomConfig?: MedicineUomConfig;
 }
 
 export interface Category {
@@ -130,6 +145,9 @@ export interface Category {
 export interface PosCartItem {
   medicine: Medicine;
   selectedBatch: string;
+  selectedUnit?: string;
+  selectedUnitMultiplier?: number;
+  baseQuantityDeducted?: number;
   quantity: number;
   unitPrice: number;
   discountAmount: number;
@@ -155,6 +173,9 @@ export interface PosSale {
     genericName: string;
     dosageForm: string;
     batchNumber: string;
+    selectedUnit?: string;
+    selectedUnitMultiplier?: number;
+    baseQuantityDeducted?: number;
     quantity: number;
     unitPrice: number;
     total: number;
@@ -163,12 +184,15 @@ export interface PosSale {
   totalDiscount: number;
   taxAmount: number;
   grandTotal: number;
-  paymentMethod: "Cash" | "Card" | "Digital Wallet" | "Insurance" | "Split";
+  paymentMethod: "Cash" | "Card" | "Digital Wallet" | "Insurance" | "Deposit Wallet" | "Credit / Account" | "Split";
   paymentDetails?: {
     cashPaid?: number;
     cardPaid?: number;
     insuranceApproved?: number;
     walletPaid?: number;
+    depositUsed?: number;
+    creditAmount?: number;
+    creditCharged?: number;
     changeGiven?: number;
   };
   status: "Completed" | "Returned" | "On Hold";
@@ -214,7 +238,9 @@ export interface CustomerPatient {
   medicalHistory: string[];
   loyaltyPoints: number;
   walletBalance: number;
+  depositBalance?: number;
   creditLimit: number;
+  unpaidBalance?: number;
   insuranceProvider?: string;
   insurancePolicyNumber?: string;
   totalSpent: number;
@@ -296,4 +322,42 @@ export interface AppSettings {
   thermalPrinterWidthMm: number;
   allowNegativeStock: boolean;
   securityLockTimeoutMinutes: number;
+  logoUrl?: string;
+  receiptHeaderMessage?: string;
+  receiptFooterMessage?: string;
+  reportHeaderNote?: string;
+  reportFooterNote?: string;
+}
+
+export type AttendanceStatus = "On Time" | "Late" | "Absent" | "Half Day" | "Overtime" | "Clocked In";
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  branchId: string;
+  branchName: string;
+  date: string; // YYYY-MM-DD
+  clockInTime: string; // ISO String
+  clockOutTime?: string; // ISO String
+  status: AttendanceStatus;
+  workHours: number;
+  overtimeHours: number;
+  lateMinutes: number;
+  notes?: string;
+  ipAddress?: string;
+  verifiedBy?: string;
+}
+
+export interface PayrollProfile {
+  userId: string;
+  userName: string;
+  roleName: string;
+  baseMonthlySalaryNGN: number;
+  hourlyRateNGN: number;
+  overtimeRateMultiplier: number; // e.g., 1.5
+  lateDeductionPerMinNGN: number; // e.g., 50 NGN per min late
+  bankName: string;
+  accountNumber: string;
 }

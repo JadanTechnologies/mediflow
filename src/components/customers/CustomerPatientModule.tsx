@@ -12,15 +12,33 @@ import {
   Phone,
   Mail,
   X,
-  UserCheck
+  UserCheck,
+  PiggyBank,
+  CreditCard,
+  CheckCircle2,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 
 export const CustomerPatientModule: React.FC = () => {
-  const { customers, addCustomer } = usePharmacy();
+  const { customers, addCustomer, addCustomerDeposit, recordCreditPayment, formatCurrency } = usePharmacy();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<CustomerPatient | null>(null);
+
+  // Deposit Modal State
+  const [depositTarget, setDepositTarget] = useState<CustomerPatient | null>(null);
+  const [depositAmount, setDepositAmount] = useState<number>(5000);
+  const [depositPaymentMethod, setDepositPaymentMethod] = useState<string>("Cash");
+  const [depositNotes, setDepositNotes] = useState<string>("Advance Deposit for Medicine Orders");
+
+  // Debt Settlement Modal State
+  const [settleTarget, setSettleTarget] = useState<CustomerPatient | null>(null);
+  const [settleAmount, setSettleAmount] = useState<number>(0);
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState<string>("Cash");
+  const [settleNotes, setSettleNotes] = useState<string>("Debt Repayment");
 
   // New Patient Form State
   const [name, setName] = useState("");
@@ -50,6 +68,20 @@ export const CustomerPatientModule: React.FC = () => {
       insuranceProvider,
     });
     setShowAddModal(false);
+  };
+
+  const handleConfirmDeposit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depositTarget || depositAmount <= 0) return;
+    addCustomerDeposit(depositTarget.id, depositAmount, depositPaymentMethod, depositNotes);
+    setDepositTarget(null);
+  };
+
+  const handleConfirmSettlement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settleTarget || settleAmount <= 0) return;
+    recordCreditPayment(settleTarget.id, settleAmount, settlePaymentMethod, settleNotes);
+    setSettleTarget(null);
   };
 
   return (
@@ -128,19 +160,44 @@ export const CustomerPatientModule: React.FC = () => {
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl flex justify-between items-center text-xs">
+              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">Credit Wallet</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">Deposit Wallet</span>
                   <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                    ${cust.walletBalance.toFixed(2)}
+                    {formatCurrency(cust.depositBalance || 0)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block">Total Pharmacy Spend</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">
-                    ${cust.totalSpent.toFixed(2)}
+                  <span className="text-[10px] text-slate-400 block font-bold">Unpaid Credit Debt</span>
+                  <span className={`font-extrabold ${(cust.unpaidBalance || 0) > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-400"}`}>
+                    {formatCurrency(cust.unpaidBalance || 0)}
                   </span>
                 </div>
+              </div>
+
+              {/* Action Buttons for Deposit & Debt Settlement */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setDepositTarget(cust);
+                    setDepositAmount(5000);
+                  }}
+                  className="py-1.5 px-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1 border border-emerald-500/20"
+                >
+                  <PiggyBank className="h-3.5 w-3.5" />
+                  <span>+ Deposit</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettleTarget(cust);
+                    setSettleAmount(cust.unpaidBalance || 0);
+                  }}
+                  className="py-1.5 px-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-bold text-[11px] flex items-center justify-center gap-1 border border-blue-500/20"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  <span>Settle Debt</span>
+                </button>
               </div>
             </div>
 
@@ -264,6 +321,179 @@ export const CustomerPatientModule: React.FC = () => {
             >
               Close Record
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Deposit Modal */}
+      {depositTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <PiggyBank className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Credit Patient Deposit</h3>
+                  <p className="text-[11px] text-slate-500">{depositTarget.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setDepositTarget(null)}>
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDeposit} className="space-y-3">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Deposit Amount
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={depositPaymentMethod}
+                  onChange={(e) => setDepositPaymentMethod(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Card">POS Card Terminal</option>
+                  <option value="Digital Wallet">Digital Wallet / Transfer</option>
+                  <option value="Insurance">Insurance Provider</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Notes / Reference
+                </label>
+                <input
+                  type="text"
+                  value={depositNotes}
+                  onChange={(e) => setDepositNotes(e.target.value)}
+                  placeholder="e.g., Bank Transfer Ref #9921"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDepositTarget(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/20"
+                >
+                  Confirm Deposit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Debt Settlement Modal */}
+      {settleTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Settle Customer Debt</h3>
+                  <p className="text-[11px] text-slate-500">{settleTarget.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setSettleTarget(null)}>
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl flex justify-between items-center">
+              <span className="font-bold text-rose-700 dark:text-rose-300">Total Outstanding Debt:</span>
+              <span className="font-extrabold text-rose-600 text-sm">
+                {formatCurrency(settleTarget.unpaidBalance || 0)}
+              </span>
+            </div>
+
+            <form onSubmit={handleConfirmSettlement} className="space-y-3">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Repayment Amount Received
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={settleTarget.unpaidBalance || 999999999}
+                  required
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={settlePaymentMethod}
+                  onChange={(e) => setSettlePaymentMethod(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Card">POS Card Terminal</option>
+                  <option value="Digital Wallet">Digital Wallet / Transfer</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  value={settleNotes}
+                  onChange={(e) => setSettleNotes(e.target.value)}
+                  placeholder="e.g. Full Debt Clearance"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSettleTarget(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md shadow-blue-600/20"
+                >
+                  Confirm Settlement
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

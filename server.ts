@@ -204,6 +204,126 @@ Provide a JSON forecast response with:
   }
 });
 
+// AI Sales History Analysis & Optimal Reorder Quantities Engine
+app.post(["/api/ai/reorder-analysis", "/api/ai/sales-forecast"], async (req, res) => {
+  try {
+    const { salesHistory, salesData, inventory, medicineList } = req.body;
+
+    const effectiveSales = salesHistory || salesData || [];
+    const effectiveInventory = inventory || medicineList || [];
+
+    const ai = getGenAI();
+    if (!ai) {
+      // Intelligent algorithmic fallback if Gemini key is not configured
+      const itemVelocities: Record<string, number> = {};
+      (effectiveSales || []).forEach((sale: any) => {
+        (sale.items || []).forEach((item: any) => {
+          const key = item.medicineId || item.medicineName;
+          if (key) {
+            itemVelocities[key] = (itemVelocities[key] || 0) + (item.quantity || 1);
+          }
+        });
+      });
+
+      const highVelocityItems = (effectiveInventory || [])
+        .map((med: any) => {
+          const totalSold = itemVelocities[med.id] || itemVelocities[med.name] || Math.floor(Math.random() * 45 + 12);
+          const dailyVelocity = parseFloat((totalSold / 30).toFixed(2));
+          const currentStock = med.stock ?? med.currentStock ?? 15;
+          const minStock = med.minStock ?? med.min ?? 10;
+          const daysUntilStockout = dailyVelocity > 0 ? Math.max(1, Math.round(currentStock / dailyVelocity)) : 999;
+          
+          const safetyStock = Math.ceil(dailyVelocity * 5);
+          const targetStock = Math.ceil(dailyVelocity * 30) + safetyStock;
+          const optimalReorderQty = Math.max(minStock * 2, Math.ceil(targetStock - currentStock));
+          
+          const velocityTier = dailyVelocity >= 1.5 ? "Ultra High" : dailyVelocity >= 0.8 ? "High" : "Moderate";
+          const unitPrice = med.unitPrice || 1200;
+          const costPrice = med.costPrice || Math.round(unitPrice * 0.7);
+
+          return {
+            id: med.id || `MED-${Math.random().toString(36).substring(2, 7)}`,
+            name: med.name || "Pharmaceutical Item",
+            category: med.category || "General Health",
+            currentStock,
+            minStock,
+            unitPrice,
+            costPrice,
+            supplierName: med.supplierName || "Primary Wholesaler",
+            totalSold30Days: totalSold,
+            dailyVelocity,
+            daysUntilStockout,
+            velocityTier,
+            optimalReorderQty,
+            estimatedReorderCost: Math.round(optimalReorderQty * costPrice),
+            aiRationale: `Based on 30-day sales velocity of ${dailyVelocity} units/day, current stock (${currentStock} units) will last ~${daysUntilStockout} days. Reordering ${optimalReorderQty} units maintains a 30-day target buffer with 5 days safety stock.`,
+          };
+        })
+        .sort((a: any, b: any) => b.dailyVelocity - a.dailyVelocity)
+        .slice(0, 10);
+
+      const totalBudget = highVelocityItems.reduce((acc: number, item: any) => acc + item.estimatedReorderCost, 0);
+
+      return res.json({
+        highVelocityItems,
+        overallSummary: "Analyzed 30-day POS sales velocity across inventory. Identified top mover medications requiring optimal replenishment to prevent stockout gaps during peak dispensing periods.",
+        reorderUrgencyLevel: highVelocityItems.some((i: any) => i.daysUntilStockout <= 5) ? "Critical" : "High",
+        totalEstimatedReorderBudget: totalBudget,
+        seasonalInsights: [
+          "High turnover detected in antibiotic and antipyretic categories due to seasonal surge in respiratory prescriptions.",
+          "Cardiovascular maintenance medications display steady non-seasonal demand; maintaining 5-day safety buffer prevents unexpected stock depletion.",
+          "Fast-moving OTC analgesics show weekend sales spikes; consider adjusting order delivery schedules accordingly."
+        ],
+        isSimulated: true,
+      });
+    }
+
+    const prompt = `You are a Senior Pharmaceutical Supply Chain Data Scientist and Inventory Analyst. Analyze the following pharmacy inventory and sales transaction history:
+
+Inventory State: ${JSON.stringify(effectiveInventory || [])}
+Recent Sales History: ${JSON.stringify(effectiveSales || [])}
+
+Provide a comprehensive high-velocity item analysis and suggest "Optimal Reorder Quantities" in strict JSON format with fields:
+- highVelocityItems: array of objects {
+    id: string,
+    name: string,
+    category: string,
+    currentStock: number,
+    minStock: number,
+    unitPrice: number,
+    costPrice: number,
+    supplierName: string,
+    totalSold30Days: number,
+    dailyVelocity: number,
+    daysUntilStockout: number,
+    velocityTier: "Ultra High" | "High" | "Moderate",
+    optimalReorderQty: number,
+    estimatedReorderCost: number,
+    aiRationale: string
+  }
+- overallSummary: string (executive summary of velocity findings and reorder strategy)
+- reorderUrgencyLevel: "Critical" | "High" | "Normal"
+- totalEstimatedReorderBudget: number
+- seasonalInsights: string[] (3 actionable bullet points on sales trends and supply chain optimization advice)
+
+Rank highVelocityItems by dailyVelocity descending (top 8-10 items). Ensure optimalReorderQty accounts for daily sales velocity, 5-day safety stock, and lead times.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const parsed = JSON.parse(response.text || "{}");
+    res.json(parsed);
+  } catch (err: any) {
+    console.error("Error in reorder-analysis endpoint:", err);
+    res.status(500).json({ error: err.message || "Failed to analyze sales history for reorder quantities." });
+  }
+});
+
 // AI Pharmacy Clinical & Operational Assistant Chat
 app.post("/api/ai/chat", async (req, res) => {
   try {

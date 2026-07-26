@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Clock,
   FileCheck,
+  FileText,
   RotateCcw,
 } from "lucide-react";
 
@@ -65,7 +66,7 @@ export const SystemSettings: React.FC = () => {
     resetToDefaultSeedData,
   } = usePharmacy();
 
-  const [activeTab, setActiveTab] = useState<"GENERAL" | "CURRENCY" | "RBAC" | "STAFF" | "BRANCHES" | "BACKUP">("GENERAL");
+  const [activeTab, setActiveTab] = useState<"GENERAL" | "BRANDING" | "CURRENCY" | "RBAC" | "STAFF" | "BRANCHES" | "BACKUP">("GENERAL");
 
   // Form states
   const [generalForm, setGeneralForm] = useState({
@@ -77,6 +78,15 @@ export const SystemSettings: React.FC = () => {
     defaultTaxRatePercent: settings.defaultTaxRatePercent,
     expiryAlertThresholdDays: settings.expiryAlertThresholdDays,
     thermalPrinterWidthMm: settings.thermalPrinterWidthMm,
+    securityLockTimeoutMinutes: settings.securityLockTimeoutMinutes ?? 5,
+  });
+
+  const [brandingForm, setBrandingForm] = useState({
+    logoUrl: settings.logoUrl || "",
+    receiptHeaderMessage: settings.receiptHeaderMessage || "",
+    receiptFooterMessage: settings.receiptFooterMessage || "",
+    reportHeaderNote: settings.reportHeaderNote || "",
+    reportFooterNote: settings.reportFooterNote || "",
   });
 
   // Role Modal state
@@ -105,6 +115,29 @@ export const SystemSettings: React.FC = () => {
     e.preventDefault();
     updateSettings(generalForm);
     alert("System general parameters updated successfully.");
+  };
+
+  const handleSaveBranding = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSettings(brandingForm);
+    addAuditLog("Branding Updated", "Updated pharmacy logo and print receipt/report custom headers & footers.");
+    alert("Pharmacy Logo and Print Receipt/Report branding updated successfully!");
+  };
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("File size exceeds 2MB. Please upload an image under 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setBrandingForm((prev) => ({ ...prev, logoUrl: result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Download complete JSON Backup
@@ -304,7 +337,8 @@ export const SystemSettings: React.FC = () => {
       {/* Settings Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
         {[
-          { id: "GENERAL", label: "General & Printer", icon: Settings },
+          { id: "GENERAL", label: "General & Operational Defaults", icon: Settings },
+          { id: "BRANDING", label: "Logo & Print Receipts / Reports", icon: Printer },
           { id: "CURRENCY", label: "Multi-Currency Settings (NGN Default)", icon: Coins },
           { id: "RBAC", label: "Super Admin Role Permissions (RBAC)", icon: ShieldCheck },
           { id: "STAFF", label: "Staff & Branch Re-Assignment", icon: Users },
@@ -434,6 +468,26 @@ export const SystemSettings: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="font-bold block mb-1 flex items-center justify-between">
+                  <span>Auto Lock-Screen Idle Timeout</span>
+                  <span className="text-[10px] bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">Security</span>
+                </label>
+                <select
+                  value={generalForm.securityLockTimeoutMinutes}
+                  onChange={(e) => setGeneralForm({ ...generalForm, securityLockTimeoutMinutes: parseInt(e.target.value) || 5 })}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-blue-600 dark:text-blue-400"
+                >
+                  <option value={1}>1 Minute (High Security)</option>
+                  <option value={3}>3 Minutes</option>
+                  <option value={5}>5 Minutes (Standard Pharmacy Security)</option>
+                  <option value={10}>10 Minutes</option>
+                  <option value={15}>15 Minutes</option>
+                  <option value={30}>30 Minutes</option>
+                  <option value={0}>Disabled</option>
+                </select>
+              </div>
+
               <div className="pt-3">
                 <button
                   type="submit"
@@ -446,6 +500,278 @@ export const SystemSettings: React.FC = () => {
             </div>
           </div>
         </form>
+      )}
+
+      {/* TAB: BRANDING & PRINTED INVOICES / REPORTS */}
+      {activeTab === "BRANDING" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Settings Form Column */}
+          <div className="lg:col-span-7 space-y-6">
+            <form onSubmit={handleSaveBranding} className="space-y-6">
+              {/* Logo Upload Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <Upload className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
+                      Pharmacy Logo Branding
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                    Invoices & Reports
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Upload your official pharmacy logo. It will be automatically sized and embedded on all thermal POS receipts, A4 sales invoices, and exported financial reports.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                  {/* Current Logo Preview */}
+                  <div className="sm:col-span-1 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex flex-col items-center justify-center text-center gap-2">
+                    {brandingForm.logoUrl ? (
+                      <img
+                        src={brandingForm.logoUrl}
+                        alt="Pharmacy Logo Preview"
+                        className="h-20 w-auto max-w-full object-contain rounded-lg shadow-2xs"
+                      />
+                    ) : (
+                      <div className="h-20 w-20 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 font-extrabold text-xs">
+                        NO LOGO
+                      </div>
+                    )}
+                    <span className="text-[10px] font-bold text-slate-400">Active Logo</span>
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div className="sm:col-span-2 space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Upload Image File (PNG, JPG, SVG)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoFileUpload}
+                        className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-slate-800 dark:file:text-blue-400 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+                        Or Custom Logo Image URL / Data Base64
+                      </label>
+                      <input
+                        type="text"
+                        value={brandingForm.logoUrl}
+                        onChange={(e) => setBrandingForm({ ...brandingForm, logoUrl: e.target.value })}
+                        placeholder="https://... or data:image/..."
+                        className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      {brandingForm.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setBrandingForm({ ...brandingForm, logoUrl: "" })}
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 text-[11px] font-bold hover:bg-rose-100 transition-colors"
+                        >
+                          Clear Logo
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBrandingForm({
+                            ...brandingForm,
+                            logoUrl:
+                              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%232563eb'/><path d='M50 20 v60 M20 50 h60' stroke='white' stroke-width='14' stroke-linecap='round'/><circle cx='50' cy='50' r='8' fill='%2360a5fa'/></svg>",
+                          })
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200 transition-colors"
+                      >
+                        Reset Default SVG Logo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* POS & Thermal Receipt Text Settings */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Printer className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
+                    POS Receipt Header & Footer Custom Messages
+                  </h3>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Receipt Custom Header Greeting / Slogan
+                    </label>
+                    <input
+                      type="text"
+                      value={brandingForm.receiptHeaderMessage}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, receiptHeaderMessage: e.target.value })}
+                      placeholder="e.g. Welcome to MediFlow Pharmacy • Your Health Is Our Priority"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Appears right below company name/address at top of printed receipts.</p>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Receipt Custom Footer Message & Return Policy
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={brandingForm.receiptFooterMessage}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, receiptFooterMessage: e.target.value })}
+                      placeholder="e.g. Thank you for choosing MediFlow! Unsealed prescribed drugs are non-refundable."
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Appears at the very bottom of thermal & A4 customer receipts.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Audit & Export Reports Text Settings */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
+                    Audit & Analytical Reports Branding Text
+                  </h3>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Report Header Compliance Note / Title Banner
+                    </label>
+                    <input
+                      type="text"
+                      value={brandingForm.reportHeaderNote}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, reportHeaderNote: e.target.value })}
+                      placeholder="e.g. MediFlow Enterprise Operations, Sales Audit & Inventory Statement"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Report Footer Confidentiality & Regulatory Disclaimer
+                    </label>
+                    <input
+                      type="text"
+                      value={brandingForm.reportFooterNote}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, reportFooterNote: e.target.value })}
+                      placeholder="e.g. Confidential Pharmacy Enterprise Audit • Generated under GPP Regulatory Standard"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Save All Print Branding Settings</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Live Preview Column */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="p-4 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-xl space-y-4 sticky top-20">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Printer className="h-4 w-4" /> Live Print Preview
+                </span>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                  Receipt Layout
+                </span>
+              </div>
+
+              {/* Thermal Receipt Paper Card */}
+              <div className="bg-white text-slate-900 p-5 rounded-2xl shadow-inner font-mono text-[11px] space-y-3 border border-slate-200">
+                {/* Header Section */}
+                <div className="text-center space-y-1.5 border-b pb-3 border-dashed border-slate-300">
+                  {brandingForm.logoUrl && (
+                    <img
+                      src={brandingForm.logoUrl}
+                      alt="Receipt Logo"
+                      className="h-10 w-auto max-w-[120px] mx-auto object-contain mb-1"
+                    />
+                  )}
+                  <h4 className="font-black text-sm uppercase tracking-wide">{generalForm.companyName}</h4>
+                  <p className="text-[10px] text-slate-600 leading-tight">{generalForm.companyAddress}</p>
+                  <p className="text-[10px] text-slate-600">Tel: {generalForm.companyPhone} • Tax ID: {generalForm.companyTaxId}</p>
+
+                  {brandingForm.receiptHeaderMessage && (
+                    <div className="pt-1 text-[10px] font-semibold text-blue-700 italic border-t border-slate-100">
+                      "{brandingForm.receiptHeaderMessage}"
+                    </div>
+                  )}
+                </div>
+
+                {/* Mock Item Table */}
+                <div className="space-y-1 text-[10px]">
+                  <div className="flex justify-between font-bold border-b border-slate-200 pb-1">
+                    <span>ITEM</span>
+                    <span>QTY x PRICE</span>
+                    <span>TOTAL</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Paracetamol 500mg</span>
+                    <span>2 x ₦1,200</span>
+                    <span className="font-bold">₦2,400</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Amoxicillin 250mg</span>
+                    <span>1 x ₦3,500</span>
+                    <span className="font-bold">₦3,500</span>
+                  </div>
+                  <div className="border-t border-slate-200 pt-1 flex justify-between font-black text-xs">
+                    <span>TOTAL PAID (CASH)</span>
+                    <span>₦5,900</span>
+                  </div>
+                </div>
+
+                {/* Footer Section */}
+                <div className="text-center space-y-1 border-t border-dashed border-slate-300 pt-3 text-[9px] text-slate-600">
+                  {brandingForm.receiptFooterMessage ? (
+                    <p className="font-medium text-slate-700 leading-tight">{brandingForm.receiptFooterMessage}</p>
+                  ) : (
+                    <p>Thank you for choosing {generalForm.companyName}!</p>
+                  )}
+                  <p className="text-[8px] text-slate-400 pt-1">MediFlow POS Enterprise • Barcode: *INV-891023*</p>
+                </div>
+              </div>
+
+              {/* Report Footer Preview Note */}
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-[10px] space-y-1">
+                <span className="text-[9px] text-slate-400 uppercase font-bold block">Exported Report Footer Disclaimer Preview</span>
+                <p className="text-slate-200 italic font-mono">
+                  {brandingForm.reportFooterNote || "Confidential Pharmacy Enterprise Audit Statement"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* TAB 2: MULTI-CURRENCY SETTINGS */}

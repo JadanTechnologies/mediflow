@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 export const ReportsAndLogs: React.FC = () => {
-  const { sales, medicines, auditLogs, formatCurrency, currentBranch } = usePharmacy();
+  const { sales, medicines, auditLogs, formatCurrency, currentBranch, settings } = usePharmacy();
   const [reportType, setReportType] = useState<"SALES" | "INVENTORY" | "AUDIT">("SALES");
 
   // Filters
@@ -273,13 +273,41 @@ export const ReportsAndLogs: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 print:p-0 print:space-y-4 print:max-w-none print:w-full">
       {/* Printable Header - hidden on screen, visible on print */}
-      <div className="hidden print:block p-4 mb-4 border-b">
-        <h1 className="text-xl font-bold">MediFlow ERP - Official Financial & Stock Report</h1>
-        <p className="text-xs text-slate-600">
-          Branch: {currentBranch?.name || "Main Branch"} | Generated: {new Date().toLocaleString()} | Currency: NGN (₦)
-        </p>
+      <div className="hidden print:block p-4 mb-4 border-b-2 border-slate-900">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex items-center gap-3">
+            {settings?.logoUrl && (
+              <img
+                src={settings.logoUrl}
+                alt="Pharmacy Logo"
+                className="h-12 w-auto max-w-[140px] object-contain"
+              />
+            )}
+            <div>
+              <h1 className="text-xl font-black text-slate-900 uppercase tracking-wide">
+                {settings?.companyName || "MediFlow Pharmacy Enterprise"}
+              </h1>
+              {settings?.reportHeaderNote && (
+                <p className="text-xs font-bold text-blue-900 mt-0.5">
+                  {settings.reportHeaderNote}
+                </p>
+              )}
+              <p className="text-xs text-slate-600 mt-0.5">
+                Branch: {currentBranch?.name || "Main Branch"} • {settings?.companyAddress || "14 Broad Street, Lagos"}
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono">
+                Tax Reg (TIN): {settings?.companyTaxId || "23948102-0001"} | Generated: {new Date().toLocaleString()} | Currency: {settings?.currencyCode || "NGN"}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-slate-100 text-slate-800 rounded border border-slate-300">
+              CONFIDENTIAL AUDIT STATEMENT
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Header Bar */}
@@ -528,8 +556,8 @@ export const ReportsAndLogs: React.FC = () => {
       )}
 
       {/* TABLE CONTENT */}
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden print:overflow-visible print:border-none print:shadow-none">
+        <div className="overflow-x-auto print:overflow-visible">
           {/* 1. SALES REPORT TABLE */}
           {reportType === "SALES" && (
             <table className="w-full text-left text-xs">

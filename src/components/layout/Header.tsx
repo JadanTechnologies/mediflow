@@ -13,11 +13,20 @@ import {
   Lock,
   UserCheck,
   Globe,
+  Sun,
+  Moon,
+  Calculator as CalcIcon,
+  Crown,
+  Mic,
 } from "lucide-react";
+import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
+import { SuperAdminPinModal } from "../auth/SuperAdminPinModal";
+import { UserRole } from "../../types/pharmacy";
 
 export const Header: React.FC = () => {
   const {
     currentRole,
+    setCurrentRole,
     currentUser,
     currentBranch,
     setActiveTab,
@@ -28,25 +37,45 @@ export const Header: React.FC = () => {
     settings,
     systemUsers,
     loginAsUser,
+    isDarkMode,
+    toggleDarkMode,
+    roles,
   } = usePharmacy();
 
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showSuperAdminPinModal, setShowSuperAdminPinModal] = useState(false);
+  const [pendingTargetRole, setPendingTargetRole] = useState<UserRole>("Super Admin");
 
   const lowStockMeds = medicines.filter((m) => m.stock <= m.minStock);
-  const nearExpiryMeds = medicines.filter((m) =>
-    m.batches.some((b) => {
+  const nearExpiryBatches: { medicineName: string; batchNumber: string; daysRemaining: number; bracket: string }[] = [];
+  
+  medicines.forEach((m) => {
+    m.batches?.forEach((b) => {
       const exp = new Date(b.expiryDate).getTime();
       const now = new Date().getTime();
-      const daysDiff = (exp - now) / (1000 * 3600 * 24);
-      return daysDiff <= 60 && daysDiff > 0;
-    })
-  );
+      const daysDiff = Math.ceil((exp - now) / (1000 * 3600 * 24));
+      if (daysDiff <= 90) {
+        let bracket = "90 Days";
+        if (daysDiff <= 0) bracket = "EXPIRED";
+        else if (daysDiff <= 30) bracket = "30 Days";
+        else if (daysDiff <= 60) bracket = "60 Days";
 
-  const totalAlerts = lowStockMeds.length + nearExpiryMeds.length;
+        nearExpiryBatches.push({
+          medicineName: m.name,
+          batchNumber: b.batchNumber,
+          daysRemaining: daysDiff,
+          bracket,
+        });
+      }
+    });
+  });
+
+  const totalAlerts = lowStockMeds.length + nearExpiryBatches.length;
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 lg:px-8 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 lg:px-8 flex items-center justify-between gap-4 print:hidden">
       {/* Global Search Input with Pill styling */}
       <div className="flex-1 max-w-md relative">
         <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-full px-4 py-1.5 border border-slate-200/60 dark:border-slate-700/60 focus-within:ring-2 focus-within:ring-blue-500/40 transition-all">
@@ -105,6 +134,38 @@ export const Header: React.FC = () => {
           <span className="hidden sm:inline">AI Insights</span>
         </button>
 
+        {/* Hands-Free Voice Commands Button */}
+        <button
+          onClick={() => setActiveTab("pos")}
+          className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold transition-colors"
+          title="Hands-free Voice Commands (Microphone API)"
+        >
+          <Mic className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 animate-pulse" />
+          <span className="hidden md:inline">Voice Engine</span>
+        </button>
+
+        {/* Digital Calculator Button */}
+        <button
+          onClick={() => setShowCalculator(true)}
+          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 transition-colors rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60"
+          title="Digital Calculator"
+        >
+          <CalcIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        </button>
+
+        {/* Dedicated Theme Toggle Button (Persists in localStorage) */}
+        <button
+          onClick={toggleDarkMode}
+          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 transition-colors rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60"
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDarkMode ? (
+            <Sun className="w-4 h-4 text-amber-400 animate-pulse" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-700" />
+          )}
+        </button>
+
         {/* Lock Screen Button */}
         <button
           onClick={lockTerminal}
@@ -160,18 +221,42 @@ export const Header: React.FC = () => {
                   </div>
                 ))}
 
-                {nearExpiryMeds.map((m) => (
+                {nearExpiryBatches.map((item, idx) => (
                   <div
-                    key={`exp-${m.id}`}
-                    className="p-3 rounded-2xl bg-red-50/60 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/20 flex items-start gap-2.5"
+                    key={`exp-${item.batchNumber}-${idx}`}
+                    className={`p-3 rounded-2xl border flex items-start gap-2.5 ${
+                      item.bracket === "30 Days" || item.bracket === "EXPIRED"
+                        ? "bg-rose-50/60 dark:bg-rose-500/10 border-rose-200/60 dark:border-rose-500/20"
+                        : item.bracket === "60 Days"
+                        ? "bg-amber-50/60 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/20"
+                        : "bg-blue-50/60 dark:bg-blue-500/10 border-blue-200/60 dark:border-blue-500/20"
+                    }`}
                   >
-                    <Clock className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
-                        Near Expiry: {m.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                        Batch expiring within 60 days.
+                    <Clock className={`h-4 w-4 shrink-0 mt-0.5 ${
+                      item.bracket === "30 Days" || item.bracket === "EXPIRED"
+                        ? "text-rose-600 dark:text-rose-400"
+                        : item.bracket === "60 Days"
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-blue-600 dark:text-blue-400"
+                    }`} />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                          {item.medicineName}
+                        </h4>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${
+                          item.bracket === "30 Days" || item.bracket === "EXPIRED"
+                            ? "bg-rose-600 text-white"
+                            : item.bracket === "60 Days"
+                            ? "bg-amber-600 text-white"
+                            : "bg-blue-600 text-white"
+                        }`}>
+                          {item.bracket}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        Batch <strong className="font-mono">{item.batchNumber}</strong> expires in{" "}
+                        <strong>{item.daysRemaining} days</strong>.
                       </p>
                     </div>
                   </div>
@@ -237,6 +322,51 @@ export const Header: React.FC = () => {
               </div>
 
               <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Switch Role</span>
+                  <Crown className="h-3 w-3 text-amber-500" />
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {roles.map((r) => {
+                    const isSuperAdminTarget = r.name === "Super Admin";
+                    const isNonAdminUser = currentRole !== "Super Admin";
+                    const isLockedForUser = isSuperAdminTarget && isNonAdminUser;
+
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          if (isLockedForUser) {
+                            setPendingTargetRole(r.name as UserRole);
+                            setShowSuperAdminPinModal(true);
+                            setShowUserDropdown(false);
+                          } else {
+                            setCurrentRole(r.name as UserRole);
+                            setShowUserDropdown(false);
+                          }
+                        }}
+                        className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-bold truncate transition-all flex items-center justify-between gap-1 ${
+                          currentRole === r.name
+                            ? "bg-blue-600 text-white shadow-2xs"
+                            : isLockedForUser
+                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                        title={
+                          isLockedForUser
+                            ? "Super Admin authorization PIN required"
+                            : `Switch active role to ${r.name}`
+                        }
+                      >
+                        <span className="truncate">{r.name}</span>
+                        {isLockedForUser && <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   Quick Switch User
                 </p>
@@ -277,6 +407,22 @@ export const Header: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Digital Calculator Modal */}
+      <DigitalCalculatorModal
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+      />
+
+      {/* Super Admin Authorization Modal */}
+      <SuperAdminPinModal
+        isOpen={showSuperAdminPinModal}
+        onClose={() => setShowSuperAdminPinModal(false)}
+        targetRole={pendingTargetRole}
+        onSuccess={() => {
+          setCurrentRole("Super Admin");
+        }}
+      />
     </header>
   );
 };

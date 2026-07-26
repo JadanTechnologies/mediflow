@@ -3,6 +3,10 @@ import { usePharmacy } from "../../context/PharmacyContext";
 import { Medicine } from "../../types/pharmacy";
 import { TableSkeleton } from "../ui/ModuleSkeletons";
 import { RbacGuard } from "../auth/RbacGuard";
+import { QRCodeSVG } from "qrcode.react";
+import { BulkImportModal } from "./BulkImportModal";
+import { UomManagerModal } from "./UomManagerModal";
+import { RestockReorderModal } from "./RestockReorderModal";
 import {
   Pill,
   Search,
@@ -12,6 +16,18 @@ import {
   ArrowRightLeft,
   X,
   Barcode,
+  QrCode,
+  Printer,
+  CheckSquare,
+  Square,
+  Tag,
+  Grid,
+  Check,
+  RotateCcw,
+  FileSpreadsheet,
+  Layers,
+  PackagePlus,
+  Truck,
 } from "lucide-react";
 
 export const MedicineManager: React.FC = () => {
@@ -32,11 +48,29 @@ export const MedicineManager: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [filterType, setFilterType] = useState<"ALL" | "LOW_STOCK" | "NEAR_EXPIRY" | "EXPIRED" | "CONTROLLED">("ALL");
 
+  // Selection state for Batch QR Printing
+  const [selectedMedIds, setSelectedMedIds] = useState<string[]>([]);
+
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [showUomModal, setShowUomModal] = useState(false);
+  const [uomMedId, setUomMedId] = useState<string | undefined>(undefined);
   const [editingMed, setEditingMed] = useState<Medicine | null>(null);
   const [barcodeMed, setBarcodeMed] = useState<Medicine | null>(null);
   const [transferMed, setTransferMed] = useState<Medicine | null>(null);
+  const [showBatchQrModal, setShowBatchQrModal] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockTargetMed, setRestockTargetMed] = useState<Medicine | null>(null);
+  const [restockModalMode, setRestockModalMode] = useState<"RESTOCK" | "REORDER">("RESTOCK");
+
+  // Batch QR Label Settings
+  const [labelCols, setLabelCols] = useState<2 | 3 | 4>(3);
+  const [labelSize, setLabelSize] = useState<"sm" | "md" | "lg">("md");
+  const [showPriceOnLabel, setShowPriceOnLabel] = useState(true);
+  const [showLocationOnLabel, setShowLocationOnLabel] = useState(true);
+  const [showExpiryOnLabel, setShowExpiryOnLabel] = useState(true);
+  const [labelCopies, setLabelCopies] = useState<number>(1);
 
   // Transfer Form State
   const [transferQty, setTransferQty] = useState(10);
@@ -93,6 +127,26 @@ export const MedicineManager: React.FC = () => {
     return true;
   });
 
+  // Toggle selection helpers
+  const toggleSelectAll = () => {
+    if (filteredMedicines.length === 0) return;
+    const allFilteredIds = filteredMedicines.map((m) => m.id);
+    const areAllSelected = allFilteredIds.every((id) => selectedMedIds.includes(id));
+    if (areAllSelected) {
+      setSelectedMedIds((prev) => prev.filter((id) => !allFilteredIds.includes(id)));
+    } else {
+      setSelectedMedIds((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+    }
+  };
+
+  const toggleSelectMed = (id: string) => {
+    setSelectedMedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const selectedMedicinesList = medicines.filter((m) => selectedMedIds.includes(m.id));
+
   const handleSaveMedicine = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingMed) {
@@ -127,7 +181,7 @@ export const MedicineManager: React.FC = () => {
     <RbacGuard permission="inventory_management">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Pill className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -138,35 +192,135 @@ export const MedicineManager: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              setFormData({
-                name: "",
-                genericName: "",
-                brandName: "",
-                category: categories[0]?.name || "Antibiotics",
-                manufacturer: "Global Pharma",
-                strength: "500mg",
-                dosageForm: "Tablet",
-                packSize: "10 Tablets/Strip",
-                purchasePrice: 1500,
-                sellingPrice: 2800,
-                stock: 100,
-                minStock: 20,
-                maxStock: 500,
-                location: "Aisle 1 - Shelf A",
-                storageTemperature: "15-25°C",
-                prescriptionRequired: true,
-                isControlledDrug: false,
-              });
-              setShowAddModal(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add New Medicine</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => {
+                setRestockTargetMed(null);
+                setRestockModalMode("RESTOCK");
+                setShowRestockModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
+            >
+              <PackagePlus className="h-4 w-4" />
+              <span>Restock Stock</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setRestockTargetMed(null);
+                setRestockModalMode("REORDER");
+                setShowRestockModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition-all flex items-center gap-2"
+            >
+              <Truck className="h-4 w-4" />
+              <span>Reorder (P.O.)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setUomMedId(undefined);
+                setShowUomModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2"
+            >
+              <Layers className="h-4 w-4" />
+              <span>Unit Conversions (UOM)</span>
+            </button>
+
+            <button
+              onClick={() => setShowBulkImportModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Bulk CSV Import</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (selectedMedIds.length === 0) {
+                  // If none selected, default to selecting all filtered medicines
+                  setSelectedMedIds(filteredMedicines.map((m) => m.id));
+                }
+                setShowBatchQrModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 border border-slate-700"
+            >
+              <QrCode className="h-4 w-4 text-emerald-400" />
+              <span>
+                Batch Print QR Labels {selectedMedIds.length > 0 ? `(${selectedMedIds.length})` : ""}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setFormData({
+                  name: "",
+                  genericName: "",
+                  brandName: "",
+                  category: categories[0]?.name || "Antibiotics",
+                  manufacturer: "Global Pharma",
+                  strength: "500mg",
+                  dosageForm: "Tablet",
+                  packSize: "10 Tablets/Strip",
+                  purchasePrice: 1500,
+                  sellingPrice: 2800,
+                  stock: 100,
+                  minStock: 20,
+                  maxStock: 500,
+                  location: "Aisle 1 - Shelf A",
+                  storageTemperature: "15-25°C",
+                  prescriptionRequired: true,
+                  isControlledDrug: false,
+                });
+                setShowAddModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add New Medicine</span>
+            </button>
+          </div>
         </div>
+
+        {/* Selection Bar when items are selected */}
+        {selectedMedIds.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/80 shadow-xs flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200 print:hidden">
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-200">
+              <span className="px-2.5 py-1 rounded-full bg-blue-600 text-white text-[11px] font-extrabold">
+                {selectedMedIds.length} Selected
+              </span>
+              <span>Medicines selected for batch actions & QR code label printing</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowBatchQrModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              >
+                <QrCode className="h-4 w-4" />
+                <span>Generate & Print QR Labels ({selectedMedIds.length})</span>
+              </button>
+
+              <button
+                onClick={toggleSelectAll}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+              >
+                {filteredMedicines.length > 0 &&
+                filteredMedicines.every((m) => selectedMedIds.includes(m.id))
+                  ? "Deselect Filtered"
+                  : "Select All Filtered"}
+              </button>
+
+              <button
+                onClick={() => setSelectedMedIds([])}
+                className="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold text-xs"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filter Tabs & Search Bar */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
@@ -225,6 +379,25 @@ export const MedicineManager: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                  <th className="p-4 w-12 text-center">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="p-1 rounded text-slate-400 hover:text-blue-600 focus:outline-none"
+                      title={
+                        filteredMedicines.length > 0 &&
+                        filteredMedicines.every((m) => selectedMedIds.includes(m.id))
+                          ? "Deselect All"
+                          : "Select All Filtered"
+                      }
+                    >
+                      {filteredMedicines.length > 0 &&
+                      filteredMedicines.every((m) => selectedMedIds.includes(m.id)) ? (
+                        <CheckSquare className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </button>
+                  </th>
                   <th className="p-4">Medicine & Generic</th>
                   <th className="p-4">Category & Form</th>
                   <th className="p-4">Storage & Location</th>
@@ -240,12 +413,30 @@ export const MedicineManager: React.FC = () => {
                   const expDate = nearestBatch ? new Date(nearestBatch.expiryDate) : null;
                   const isNearExp = expDate && (expDate.getTime() - Date.now()) / (1000 * 3600 * 24) <= 60;
                   const isLow = med.stock <= med.minStock;
+                  const isSelected = selectedMedIds.includes(med.id);
 
                   return (
                     <tr
                       key={med.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      className={`transition-colors ${
+                        isSelected
+                          ? "bg-blue-50/70 dark:bg-blue-950/40"
+                          : "hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      }`}
                     >
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => toggleSelectMed(med.id)}
+                          className="p-1 rounded text-slate-400 hover:text-blue-600 focus:outline-none"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="h-4 w-4 text-blue-600" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                        </button>
+                      </td>
+
                       <td className="p-4 space-y-0.5">
                         <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
                           <span>{med.name}</span>
@@ -318,6 +509,41 @@ export const MedicineManager: React.FC = () => {
 
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setRestockTargetMed(med);
+                              setRestockModalMode("RESTOCK");
+                              setShowRestockModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                            title="Restock Stock Batch for this Medication"
+                          >
+                            <PackagePlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setRestockTargetMed(med);
+                              setRestockModalMode("REORDER");
+                              setShowRestockModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                            title="Create Supplier Reorder (P.O.)"
+                          >
+                            <Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setUomMedId(med.id);
+                              setShowUomModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Configure UOM Conversion Rules (Box/Strip/Tablet)"
+                          >
+                            <Layers className="h-4 w-4" />
+                          </button>
+
                           <button
                             onClick={() => setBarcodeMed(med)}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -640,6 +866,323 @@ export const MedicineManager: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Batch Print QR Labels Modal */}
+        {showBatchQrModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-5xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[92vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400">
+                    <QrCode className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                      Batch Print Shelf QR Labels
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Generate printable QR code labels for shelf management, inventory audits, and POS scanning.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowBatchQrModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Controls and Customization Header */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Grid Layout Option */}
+                  <div>
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+                      <Grid className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Grid Columns</span>
+                    </label>
+                    <div className="flex rounded-xl bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700">
+                      {[2, 3, 4].map((cols) => (
+                        <button
+                          key={cols}
+                          onClick={() => setLabelCols(cols as any)}
+                          className={`flex-1 py-1 rounded-lg font-bold transition-all ${
+                            labelCols === cols
+                              ? "bg-blue-600 text-white shadow-xs"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                          }`}
+                        >
+                          {cols} Cols
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Label Size Option */}
+                  <div>
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+                      <Tag className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Label Dimensions</span>
+                    </label>
+                    <div className="flex rounded-xl bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700">
+                      {[
+                        { id: "sm", label: "Compact" },
+                        { id: "md", label: "Standard" },
+                        { id: "lg", label: "Large" },
+                      ].map((sz) => (
+                        <button
+                          key={sz.id}
+                          onClick={() => setLabelSize(sz.id as any)}
+                          className={`flex-1 py-1 rounded-lg font-bold transition-all ${
+                            labelSize === sz.id
+                              ? "bg-blue-600 text-white shadow-xs"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                          }`}
+                        >
+                          {sz.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Copies per Medicine */}
+                  <div>
+                    <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1.5">
+                      Labels Per Item
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={labelCopies}
+                      onChange={(e) => setLabelCopies(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+
+                  {/* Quick Summary / Selection reset */}
+                  <div className="flex flex-col justify-end">
+                    <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                      Total Print Output:
+                    </div>
+                    <div className="font-black text-sm text-blue-600 dark:text-blue-400">
+                      {selectedMedicinesList.length * labelCopies} Total Labels ({selectedMedicinesList.length} SKUs)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visible Data Toggles */}
+                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-300 font-semibold">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Include on Label:
+                  </span>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-blue-600">
+                    <input
+                      type="checkbox"
+                      checked={showPriceOnLabel}
+                      onChange={(e) => setShowPriceOnLabel(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>Retail Price</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-blue-600">
+                    <input
+                      type="checkbox"
+                      checked={showLocationOnLabel}
+                      onChange={(e) => setShowLocationOnLabel(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>Shelf Location & Temp</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-blue-600">
+                    <input
+                      type="checkbox"
+                      checked={showExpiryOnLabel}
+                      onChange={(e) => setShowExpiryOnLabel(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>FEFO Expiry Date & Batch #</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* QR Code Labels Printable Grid Area */}
+              <div className="flex-1 overflow-y-auto pr-1">
+                {selectedMedicinesList.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 space-y-3">
+                    <QrCode className="h-10 w-10 mx-auto opacity-40" />
+                    <p className="text-sm font-semibold">No medicines selected for QR label printing.</p>
+                    <button
+                      onClick={() => {
+                        setSelectedMedIds(medicines.map((m) => m.id));
+                      }}
+                      className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                    >
+                      Select All {medicines.length} Medicines
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`grid gap-3.5 ${
+                      labelCols === 2
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : labelCols === 3
+                        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+                        : "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+                    }`}
+                  >
+                    {selectedMedicinesList.flatMap((med) =>
+                      Array.from({ length: labelCopies }).map((_, copyIdx) => {
+                        const nearestBatch = med.batches[0];
+                        const qrPayload = JSON.stringify({
+                          id: med.id,
+                          sku: med.sku,
+                          name: med.name,
+                          barcode: med.barcode,
+                          price: med.sellingPrice,
+                          location: med.location,
+                          expiry: nearestBatch?.expiryDate || "N/A",
+                        });
+
+                        return (
+                          <div
+                            key={`${med.id}-copy-${copyIdx}`}
+                            className={`bg-white border-2 border-slate-900 rounded-2xl p-3 shadow-xs text-slate-900 flex flex-col justify-between space-y-2 relative group transition-all hover:border-blue-600 ${
+                              labelSize === "sm" ? "text-[10px] p-2" : labelSize === "lg" ? "p-4 text-xs" : "p-3 text-[11px]"
+                            }`}
+                          >
+                            {/* Label Header */}
+                            <div className="flex items-start justify-between gap-1 border-b border-slate-200 pb-1.5">
+                              <div>
+                                <h4 className="font-extrabold uppercase tracking-tight line-clamp-1 leading-snug">
+                                  {med.name}
+                                </h4>
+                                <p className="text-[9px] text-slate-500 font-medium line-clamp-1">
+                                  {med.genericName} • {med.strength}
+                                </p>
+                              </div>
+
+                              {med.isControlledDrug && (
+                                <span className="bg-purple-100 text-purple-900 text-[8px] font-black px-1 py-0.5 rounded border border-purple-300 shrink-0">
+                                  CTRL
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Label Center: QR Code & Shelf Metadata */}
+                            <div className="flex items-center gap-2 py-1">
+                              <div className="p-1 bg-white border border-slate-200 rounded-lg shrink-0">
+                                <QRCodeSVG
+                                  value={qrPayload}
+                                  size={labelSize === "sm" ? 48 : labelSize === "lg" ? 72 : 60}
+                                  level="M"
+                                  marginSize={1}
+                                />
+                              </div>
+
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <p className="font-mono text-[10px] font-black text-slate-700 tracking-wider">
+                                  {med.sku}
+                                </p>
+
+                                {showLocationOnLabel && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded p-1 text-[9px] font-bold text-blue-900 leading-none">
+                                    <span>Shelf: {med.location}</span>
+                                  </div>
+                                )}
+
+                                {showExpiryOnLabel && nearestBatch && (
+                                  <div className="text-[9px] font-mono text-slate-600">
+                                    <span className="font-bold">EXP:</span> {nearestBatch.expiryDate}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Label Footer */}
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                              <div className="font-mono text-[9px] text-slate-500 font-bold">
+                                {med.barcode}
+                              </div>
+
+                              {showPriceOnLabel && (
+                                <div className="font-mono font-black text-xs text-slate-900">
+                                  {formatCurrency(med.sellingPrice)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer Controls */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedMedIds(medicines.map((m) => m.id))}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200"
+                  >
+                    Select All ({medicines.length})
+                  </button>
+                  <button
+                    onClick={() => setSelectedMedIds([])}
+                    className="px-3 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-bold text-xs"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBatchQrModal(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                  >
+                    Close
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    disabled={selectedMedicinesList.length === 0}
+                    className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-blue-600/30 flex items-center gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Print {selectedMedicinesList.length * labelCopies} QR Labels</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Bulk CSV / Excel Import Modal */}
+        <BulkImportModal
+          isOpen={showBulkImportModal}
+          onClose={() => setShowBulkImportModal(false)}
+        />
+        {/* UOM Conversion Rules Manager Modal */}
+        <UomManagerModal
+          isOpen={showUomModal}
+          onClose={() => setShowUomModal(false)}
+          preSelectedMedicineId={uomMedId}
+        />
+        {/* Restock & Reorder Purchase Order Modal */}
+        <RestockReorderModal
+          isOpen={showRestockModal}
+          onClose={() => setShowRestockModal(false)}
+          selectedMedicine={restockTargetMed}
+          mode={restockModalMode}
+        />
       </div>
     </RbacGuard>
   );

@@ -1580,7 +1580,7 @@ export const PosSystem: React.FC = () => {
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   {onHoldSales.map((h) => {
-                    const heldTotal = h.items.reduce((sum, item) => sum + item.total, 0);
+                    const heldTotal = h.items.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
                     return (
                       <div
                         key={h.id}
@@ -1613,9 +1613,9 @@ export const PosSystem: React.FC = () => {
                           {h.items.map((item, i) => (
                             <div key={i} className="flex justify-between text-slate-700 dark:text-slate-300">
                               <span className="font-semibold truncate max-w-[220px]">
-                                {item.quantity}x {item.medicineName} ({item.selectedUnit || "Base Unit"})
+                                {item.quantity}x {item.medicine.name} ({item.selectedUnit || "Base Unit"})
                               </span>
-                              <span className="font-mono">{formatCurrency(item.total)}</span>
+                              <span className="font-mono">{formatCurrency(item.sellingPrice * item.quantity)}</span>
                             </div>
                           ))}
                         </div>

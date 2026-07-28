@@ -99,7 +99,7 @@ export const MedicineManager: React.FC = () => {
   });
 
   if (isLoading) {
-    return <TableSkeleton rows={8} cols={6} />;
+    return <TableSkeleton rows={8} />;
   }
 
   const filteredMedicines = medicines.filter((m) => {
@@ -115,13 +115,13 @@ export const MedicineManager: React.FC = () => {
     if (filterType === "LOW_STOCK") return m.stock <= m.minStock;
     if (filterType === "CONTROLLED") return m.isControlledDrug;
     if (filterType === "NEAR_EXPIRY") {
-      return m.batches.some((b) => {
+      return m.batches?.some((b) => {
         const diff = (new Date(b.expiryDate).getTime() - Date.now()) / (1000 * 3600 * 24);
         return diff > 0 && diff <= 60;
-      });
+      }) || false;
     }
     if (filterType === "EXPIRED") {
-      return m.batches.some((b) => new Date(b.expiryDate).getTime() < Date.now());
+      return m.batches?.some((b) => new Date(b.expiryDate).getTime() < Date.now()) || false;
     }
 
     return true;
@@ -169,7 +169,7 @@ export const MedicineManager: React.FC = () => {
         {
           medicineId: transferMed.id,
           medicineName: transferMed.name,
-          batchNumber: transferMed.batches[0]?.batchNumber || "BATCH-01",
+          batchNumber: transferMed.batches?.[0]?.batchNumber || "BATCH-01",
           quantity: transferQty,
         },
       ],
@@ -178,7 +178,7 @@ export const MedicineManager: React.FC = () => {
   };
 
   return (
-    <RbacGuard permission="inventory_management">
+    <RbacGuard permission="inventory_manage">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
@@ -409,7 +409,7 @@ export const MedicineManager: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredMedicines.map((med) => {
-                  const nearestBatch = med.batches[0];
+                  const nearestBatch = med.batches?.[0];
                   const expDate = nearestBatch ? new Date(nearestBatch.expiryDate) : null;
                   const isNearExp = expDate && (expDate.getTime() - Date.now()) / (1000 * 3600 * 24) <= 60;
                   const isLow = med.stock <= med.minStock;
@@ -1039,7 +1039,7 @@ export const MedicineManager: React.FC = () => {
                   >
                     {selectedMedicinesList.flatMap((med) =>
                       Array.from({ length: labelCopies }).map((_, copyIdx) => {
-                        const nearestBatch = med.batches[0];
+                        const nearestBatch = med.batches?.[0];
                         const qrPayload = JSON.stringify({
                           id: med.id,
                           sku: med.sku,

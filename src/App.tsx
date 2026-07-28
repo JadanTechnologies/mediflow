@@ -4,6 +4,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { LockScreenModal } from "./components/auth/LockScreenModal";
 import { OfflineSyncBanner } from "./components/pwa/OfflineSyncBanner";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 // View Modules
 import { DashboardOverview } from "./components/dashboard/DashboardOverview";
@@ -19,7 +20,7 @@ import { AttendanceTrackerModule } from "./components/attendance/AttendanceTrack
 import { SystemSettings } from "./components/settings/SystemSettings";
 
 const MainLayout: React.FC = () => {
-  const { activeTab, isDarkMode } = usePharmacy();
+  const { activeTab, setActiveTab, isDarkMode } = usePharmacy();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const renderActiveTab = () => {
@@ -64,7 +65,9 @@ const MainLayout: React.FC = () => {
         <OfflineSyncBanner />
         <Header />
         <main className="flex-1 overflow-y-auto">
-          {renderActiveTab()}
+          <ErrorBoundary key={activeTab} onResetTab={() => setActiveTab("dashboard")}>
+            {renderActiveTab()}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

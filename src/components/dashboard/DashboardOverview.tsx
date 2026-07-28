@@ -39,9 +39,9 @@ export const DashboardOverview: React.FC = () => {
   }
 
   // Metrics
-  const todaySalesTotal = sales.reduce((acc, s) => acc + s.grandTotal, 0);
-  const totalStockValue = medicines.reduce((acc, m) => acc + m.stock * m.purchasePrice, 0);
-  const lowStockCount = medicines.filter((m) => m.stock <= m.minStock).length;
+  const todaySalesTotal = sales.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+  const totalStockValue = medicines.reduce((acc, m) => acc + (m.stock || 0) * (m.purchasePrice || 0), 0);
+  const lowStockCount = medicines.filter((m) => (m.stock || 0) <= (m.minStock || 0)).length;
   
   // Calculate Near Expiry Count across batches
   const todayMs = new Date().getTime();

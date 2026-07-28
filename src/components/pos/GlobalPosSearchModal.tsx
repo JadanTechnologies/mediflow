@@ -234,7 +234,7 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
                 const isSelected = index === selectedIndex;
                 const isAdded = addedItems[med.id];
                 const isOutOfStock = med.stock <= 0;
-                const isLowStock = med.stock > 0 && med.stock <= med.minStockLevel;
+                const isLowStock = med.stock > 0 && med.stock <= med.minStock;
 
                 const queryLower = query.trim().toLowerCase();
                 const matchesGeneric = queryLower && med.genericName.toLowerCase().includes(queryLower);
@@ -267,7 +267,7 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                           {med.dosageForm}
                         </span>
-                        {med.requiresPrescription && (
+                        {med.prescriptionRequired && (
                           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center gap-1">
                             <ShieldCheck className="h-3 w-3" />
                             <span>Prescription Required</span>
@@ -293,11 +293,11 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
                         <span className="font-mono">SKU: {med.sku}</span>
                         <span>•</span>
                         <span>Category: {med.category}</span>
-                        {med.locationInStore && (
+                        {med.location && (
                           <>
                             <span>•</span>
                             <span className="font-medium text-amber-600 dark:text-amber-400">
-                              Rack/Shelf: {med.locationInStore}
+                              Rack/Shelf: {med.location}
                             </span>
                           </>
                         )}

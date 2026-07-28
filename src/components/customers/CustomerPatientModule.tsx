@@ -148,7 +148,7 @@ export const CustomerPatientModule: React.FC = () => {
                 </p>
               </div>
 
-              {cust.allergies.length > 0 && (
+              {Array.isArray(cust.allergies) && cust.allergies.length > 0 && (
                 <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0" />
                   <div className="text-[11px]">
@@ -311,8 +311,8 @@ export const CustomerPatientModule: React.FC = () => {
               <p>Patient Code: <strong className="font-mono">{selectedPatient.patientCode}</strong></p>
               <p>Phone: {selectedPatient.phone}</p>
               <p>Insurance: {selectedPatient.insuranceProvider || "Self-Pay"}</p>
-              <p>Allergies: <strong className="text-rose-600">{selectedPatient.allergies.join(", ") || "None Reported"}</strong></p>
-              <p>Total Spend: <strong>${selectedPatient.totalSpent.toFixed(2)}</strong></p>
+              <p>Allergies: <strong className="text-rose-600">{Array.isArray(selectedPatient.allergies) ? selectedPatient.allergies.join(", ") || "None Reported" : "None Reported"}</strong></p>
+              <p>Total Spend: <strong>{formatCurrency(selectedPatient.totalSpent || 0)}</strong></p>
             </div>
 
             <button

@@ -899,7 +899,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
           const baseDeduct = cartMatch.quantity * multiplier;
           const newStock = Math.max(0, med.stock - baseDeduct);
 
-          const updatedBatches = med.batches.map((b) => {
+          const updatedBatches = (med.batches || []).map((b) => {
             if (b.batchNumber === cartMatch.selectedBatch) {
               return { ...b, quantity: Math.max(0, b.quantity - baseDeduct) };
             }
@@ -1028,11 +1028,12 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       prev.map((med) => {
         if (med.id === medicineId) {
           const newTotalStock = med.stock + quantityAdded;
-          const existingBatchIdx = med.batches.findIndex(
+          const currentBatches = med.batches || [];
+          const existingBatchIdx = currentBatches.findIndex(
             (b) => b.batchNumber.toLowerCase() === batchDetails.batchNumber.toLowerCase()
           );
 
-          let updatedBatches = [...med.batches];
+          let updatedBatches = [...currentBatches];
           if (existingBatchIdx >= 0) {
             updatedBatches[existingBatchIdx] = {
               ...updatedBatches[existingBatchIdx],

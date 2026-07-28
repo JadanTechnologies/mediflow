@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 export const PurchaseModule: React.FC = () => {
-  const { suppliers, purchases, addSupplier, addPurchaseOrder } = usePharmacy();
+  const { suppliers, purchases, addSupplier, addPurchaseOrder, formatCurrency } = usePharmacy();
 
   const [activeTab, setActiveTab] = useState<"ORDERS" | "SUPPLIERS">("ORDERS");
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,11 +171,11 @@ export const PurchaseModule: React.FC = () => {
                   <div>
                     <span className="text-[10px] text-slate-400 block">Total PO Value</span>
                     <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      ${po.totalAmount.toFixed(2)}
+                      {formatCurrency(po.totalAmount || 0)}
                     </span>
                   </div>
                   <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-xl">
-                    Paid: ${po.paidAmount.toFixed(2)}
+                    Paid: {formatCurrency(po.paidAmount || 0)}
                   </span>
                 </div>
               </div>
@@ -212,13 +212,13 @@ export const PurchaseModule: React.FC = () => {
                 <div>
                   <span className="text-[10px] text-slate-400 block">Outstanding Ledger</span>
                   <span className="font-extrabold text-rose-600 dark:text-rose-400">
-                    ${sup.balance.toFixed(2)}
+                    {formatCurrency(sup.balance || 0)}
                   </span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block">Lifetime Volume</span>
                   <span className="font-extrabold text-slate-900 dark:text-slate-100">
-                    ${sup.totalPurchases.toFixed(2)}
+                    {formatCurrency(sup.totalPurchases || 0)}
                   </span>
                 </div>
               </div>

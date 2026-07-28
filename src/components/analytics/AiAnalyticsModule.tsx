@@ -100,8 +100,8 @@ export const AiAnalyticsModule: React.FC = () => {
             category: m.category,
             stock: m.stock,
             minStock: m.minStock,
-            unitPrice: m.unitPrice,
-            costPrice: m.costPrice,
+            unitPrice: m.sellingPrice,
+            costPrice: m.purchasePrice,
             supplierName: m.supplierName,
           })),
         }),
@@ -117,7 +117,7 @@ export const AiAnalyticsModule: React.FC = () => {
       // Heuristic analysis based on context state
       const itemVelocities: Record<string, number> = {};
       sales.forEach((s) => {
-        s.items.forEach((item) => {
+        s.items?.forEach((item) => {
           itemVelocities[item.medicineId] = (itemVelocities[item.medicineId] || 0) + item.quantity;
         });
       });
@@ -128,7 +128,7 @@ export const AiAnalyticsModule: React.FC = () => {
         const daysLeft = velocity > 0 ? Math.max(1, Math.round(m.stock / velocity)) : 999;
         const targetStock = Math.ceil(velocity * 30) + Math.ceil(velocity * 5);
         const optQty = Math.max(m.minStock * 2, Math.ceil(targetStock - m.stock));
-        const cost = Math.round(optQty * (m.costPrice || m.unitPrice * 0.7));
+        const cost = Math.round(optQty * (m.purchasePrice || m.sellingPrice * 0.7));
 
         return {
           id: m.id,
@@ -136,13 +136,13 @@ export const AiAnalyticsModule: React.FC = () => {
           category: m.category || "General",
           currentStock: m.stock,
           minStock: m.minStock,
-          unitPrice: m.unitPrice,
-          costPrice: m.costPrice || Math.round(m.unitPrice * 0.7),
+          unitPrice: m.sellingPrice,
+          costPrice: m.purchasePrice || Math.round(m.sellingPrice * 0.7),
           supplierName: m.supplierName || "Primary Wholesaler",
           totalSold30Days: sold,
           dailyVelocity: velocity,
           daysUntilStockout: daysLeft,
-          velocityTier: velocity >= 1.5 ? "Ultra High" : velocity >= 0.8 ? "High" : "Moderate",
+          velocityTier: (velocity >= 1.5 ? "Ultra High" : velocity >= 0.8 ? "High" : "Moderate") as "High" | "Ultra High" | "Moderate",
           optimalReorderQty: optQty,
           estimatedReorderCost: cost,
           aiRationale: `30-day sales rate is ${velocity} units/day. Current stock of ${m.stock} units covers ~${daysLeft} days. Reordering ${optQty} units guarantees a 30-day sales buffer with 5-day safety stock.`,
@@ -181,15 +181,14 @@ export const AiAnalyticsModule: React.FC = () => {
       expectedDeliveryDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
       items: [
         {
-          medicineId: item.id,
           medicineName: item.name,
-          orderQty: item.optimalReorderQty,
+          quantity: item.optimalReorderQty,
           unitCost: item.costPrice,
-          totalAmount: item.estimatedReorderCost,
+          totalCost: item.estimatedReorderCost,
         },
       ],
       totalCost: item.estimatedReorderCost,
-      status: "Pending Approval",
+      status: "Pending",
       notes: `AI-Generated Purchase Order based on 30-day Sales History Velocity (${item.dailyVelocity} units/day). Rationale: ${item.aiRationale}`,
     });
 
@@ -213,13 +212,12 @@ export const AiAnalyticsModule: React.FC = () => {
     let countPOs = 0;
     Object.entries(itemsBySupplier).forEach(([supName, items]) => {
       const poItems = items.map((i) => ({
-        medicineId: i.id,
         medicineName: i.name,
-        orderQty: i.optimalReorderQty,
+        quantity: i.optimalReorderQty,
         unitCost: i.costPrice,
-        totalAmount: i.estimatedReorderCost,
+        totalCost: i.estimatedReorderCost,
       }));
-      const totalPoCost = poItems.reduce((acc, i) => acc + i.totalAmount, 0);
+      const totalPoCost = poItems.reduce((acc, i) => acc + i.totalCost, 0);
 
       addPurchaseOrder({
         poNumber: `PO-AI-BULK-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -228,7 +226,7 @@ export const AiAnalyticsModule: React.FC = () => {
         expectedDeliveryDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
         items: poItems,
         totalCost: totalPoCost,
-        status: "Pending Approval",
+        status: "Pending",
         notes: `AI Bulk Sales Velocity Reorder for ${items.length} high-turnover items. Total Budget: ${formatCurrency(totalPoCost)}.`,
       });
       countPOs++;

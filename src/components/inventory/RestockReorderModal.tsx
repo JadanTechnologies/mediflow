@@ -153,11 +153,10 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
       notes: reorderNotes || `Auto reorder for ${currentMedicine?.name}`,
       items: [
         {
-          medicineId: medicineId,
           medicineName: currentMedicine?.name || "Medicine",
-          orderedQty: reorderQty,
-          unitCostPrice: purchasePrice,
-          totalPrice: totalCost,
+          quantity: reorderQty,
+          unitCost: purchasePrice,
+          totalCost: totalCost,
         },
       ],
     });
@@ -267,7 +266,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                   >
                     {medicines.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} ({m.strength}) • Current Stock: {m.stock} {m.unit} {m.stock <= m.minStock ? "⚠️ LOW" : ""}
+                        {m.name} ({m.strength}) • Current Stock: {m.stock} {m.packagingUnit} {m.stock <= m.minStock ? "⚠️ LOW" : ""}
                       </option>
                     ))}
                   </select>
@@ -278,7 +277,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                     <div>
                       <span className="text-[10px] text-slate-400 font-bold block">Current Stock</span>
                       <span className={`font-mono font-extrabold text-sm ${currentMedicine.stock <= currentMedicine.minStock ? "text-rose-600" : "text-emerald-600"}`}>
-                        {currentMedicine.stock} {currentMedicine.unit}s
+                        {currentMedicine.stock} {currentMedicine.packagingUnit}s
                       </span>
                     </div>
                     <div>
@@ -388,7 +387,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                     >
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.name} ({s.contactPerson}) • {s.city}
+                          {s.name} ({s.contactPerson}) • {s.address}
                         </option>
                       ))}
                     </select>
@@ -487,7 +486,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                     >
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.name} ({s.contactPerson}) • {s.city}
+                          {s.name} ({s.contactPerson}) • {s.address}
                         </option>
                       ))}
                     </select>

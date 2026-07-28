@@ -137,7 +137,7 @@ export const PrescriptionModule: React.FC = () => {
   };
 
   return (
-    <RbacGuard permission="prescriptions">
+    <RbacGuard permission="prescriptions_view">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

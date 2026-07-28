@@ -25,7 +25,7 @@ export const FinancialModule: React.FC = () => {
   const [amount, setAmount] = useState<number>(45000);
 
   if (isLoading) {
-    return <TableSkeleton rows={6} cols={5} />;
+    return <TableSkeleton rows={6} />;
   }
 
   const totalIncome = financials
@@ -51,7 +51,7 @@ export const FinancialModule: React.FC = () => {
   };
 
   return (
-    <RbacGuard permission="finance_ledger">
+    <RbacGuard permission="financials_view">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">

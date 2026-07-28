@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 
 export const ReportsAndLogs: React.FC = () => {
-  const { sales, medicines, auditLogs, formatCurrency, currentBranch, settings } = usePharmacy();
-  const [reportType, setReportType] = useState<"SALES" | "INVENTORY" | "AUDIT">("SALES");
+  const { sales, medicines, auditLogs, endOfDayReports, formatCurrency, currentBranch, settings } = usePharmacy();
+  const [reportType, setReportType] = useState<"SALES" | "INVENTORY" | "AUDIT" | "EOD">("SALES");
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -350,6 +350,7 @@ export const ReportsAndLogs: React.FC = () => {
             { id: "SALES", label: "Sales & Tax Revenue Report" },
             { id: "INVENTORY", label: "Stock Valuation & Margin Report" },
             { id: "AUDIT", label: "Security Audit Logs" },
+            { id: "EOD", label: "End of Day Z-Reports" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -792,6 +793,58 @@ export const ReportsAndLogs: React.FC = () => {
                       </td>
                       <td className="p-4 font-bold text-blue-600 dark:text-blue-400">{log.action}</td>
                       <td className="p-4 text-slate-600 dark:text-slate-300">{log.details}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* 4. END OF DAY Z-REPORTS TABLE */}
+          {reportType === "EOD" && (
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                  <th className="p-4">Report No</th>
+                  <th className="p-4">Date / Time</th>
+                  <th className="p-4">Branch</th>
+                  <th className="p-4">Cashier</th>
+                  <th className="p-4 text-right">Gross Sales</th>
+                  <th className="p-4 text-right">Cash Counted</th>
+                  <th className="p-4 text-right">Discrepancy</th>
+                  <th className="p-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {endOfDayReports.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-10 text-center text-slate-400">
+                      No End-of-Day Z-Reports generated yet. Perform daily cash register closures in the POS module.
+                    </td>
+                  </tr>
+                ) : (
+                  endOfDayReports.map((rep) => (
+                    <tr key={rep.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="p-4 font-mono font-black text-blue-600 dark:text-blue-400">{rep.reportNumber}</td>
+                      <td className="p-4 font-mono text-slate-500">{rep.date} ({new Date(rep.closedAt).toLocaleTimeString()})</td>
+                      <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{rep.branchName}</td>
+                      <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{rep.cashierName}</td>
+                      <td className="p-4 text-right font-mono font-bold text-emerald-600">{formatCurrency(rep.totalGrossRevenue)}</td>
+                      <td className="p-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100">{formatCurrency(rep.actualCashCounted)}</td>
+                      <td className="p-4 text-right font-mono font-bold">{formatCurrency(rep.cashDiscrepancy)}</td>
+                      <td className="p-4 text-center">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                            rep.status === "Balanced"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : rep.status === "Over"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                              : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                          }`}
+                        >
+                          {rep.status}
+                        </span>
+                      </td>
                     </tr>
                   ))
                 )}

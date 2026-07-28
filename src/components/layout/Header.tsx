@@ -352,8 +352,7 @@ export const Header: React.FC = () => {
                         key={r.id}
                         onClick={() => {
                           if (isLockedForUser) {
-                            setPendingTargetRole(r.name as UserRole);
-                            setShowSuperAdminPinModal(true);
+                            alert("Access Denied: Role switching to Super Admin is prohibited. Only pre-authenticated Super Admin sessions hold Super Admin privileges.");
                             setShowUserDropdown(false);
                           } else {
                             setCurrentRole(r.name as UserRole);
@@ -364,17 +363,17 @@ export const Header: React.FC = () => {
                           currentRole === r.name
                             ? "bg-blue-600 text-white shadow-2xs"
                             : isLockedForUser
-                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60"
+                            ? "bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60 opacity-80"
                             : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                         }`}
                         title={
                           isLockedForUser
-                            ? "Super Admin authorization PIN required"
+                            ? "Role switching to Super Admin is prohibited"
                             : `Switch active role to ${r.name}`
                         }
                       >
                         <span className="truncate">{r.name}</span>
-                        {isLockedForUser && <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />}
+                        {isLockedForUser && <Lock className="h-3 w-3 shrink-0 text-rose-600 dark:text-rose-400" />}
                       </button>
                     );
                   })}

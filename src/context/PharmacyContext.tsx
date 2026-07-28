@@ -20,6 +20,7 @@ import {
   PermissionKey,
   AttendanceRecord,
   PayrollProfile,
+  EndOfDayReport,
 } from "../types/pharmacy";
 import {
   MOCK_BRANCHES,
@@ -175,6 +176,10 @@ interface PharmacyContextType {
   restoreSystemState: (backupObj: any) => boolean;
   resetToDefaultSeedData: () => void;
   
+  // End of Day (Z-Report)
+  endOfDayReports: EndOfDayReport[];
+  saveEndOfDayReport: (report: Omit<EndOfDayReport, "id" | "reportNumber" | "closedAt">) => EndOfDayReport;
+  
   // Global search query helper
   globalSearchQuery: string;
   setGlobalSearchQuery: (q: string) => void;
@@ -231,9 +236,35 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [settings, setSettings] = useState<AppSettings>(MOCK_SETTINGS);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
   const [payrollProfiles] = useState<PayrollProfile[]>(MOCK_PAYROLL_PROFILES);
+  const [endOfDayReports, setEndOfDayReports] = useState<EndOfDayReport[]>([]);
+
+  const saveEndOfDayReport = (reportData: Omit<EndOfDayReport, "id" | "reportNumber" | "closedAt">): EndOfDayReport => {
+    const timestampStr = new Date().toISOString().replace(/\D/g, "").slice(0, 8);
+    const newReport: EndOfDayReport = {
+      ...reportData,
+      id: `eod-${Date.now()}`,
+      reportNumber: `ZREP-${timestampStr}-${Math.floor(100 + Math.random() * 900)}`,
+      closedAt: new Date().toISOString(),
+    };
+
+    setEndOfDayReports((prev) => [newReport, ...prev]);
+
+    addAuditLog(
+      "EOD Reconciliation Completed",
+      `Z-Report ${newReport.reportNumber} closed by ${newReport.cashierName}. Total Gross: ${formatCurrency(newReport.totalGrossRevenue)}, Cash Discrepancy: ${formatCurrency(newReport.cashDiscrepancy)} (${newReport.status}).`
+    );
+
+    return newReport;
+  };
 
   // Custom role setter that updates currentRole, currentUser & branch state
   const setCurrentRole = (newRole: UserRole) => {
+    if (newRole === "Super Admin" && currentRole !== "Super Admin") {
+      addAuditLog("Role Switch Denied", "Blocked attempt to switch role to Super Admin.");
+      alert("Access Denied: Role switching to Super Admin is prohibited. Only pre-authenticated Super Admin sessions possess Super Admin privileges.");
+      return;
+    }
+
     setCurrentRoleState(newRole);
 
     if (newRole === "Super Admin") {
@@ -1362,6 +1393,8 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateSettings,
         restoreSystemState,
         resetToDefaultSeedData,
+        endOfDayReports,
+        saveEndOfDayReport,
         globalSearchQuery,
         setGlobalSearchQuery,
       }}

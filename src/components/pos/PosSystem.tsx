@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { Medicine, CustomerPatient, PosSale, PosCartItem } from "../../types/pharmacy";
 import { PosSkeleton } from "../ui/ModuleSkeletons";
@@ -6,6 +6,9 @@ import { RbacGuard } from "../auth/RbacGuard";
 import { CameraBarcodeScannerModal } from "./CameraBarcodeScannerModal";
 import { VoiceCommandAssistant } from "../voice/VoiceCommandAssistant";
 import { RestockReorderModal } from "../inventory/RestockReorderModal";
+import { EndOfDayModal } from "./EndOfDayModal";
+import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
+import { GlobalPosSearchModal } from "./GlobalPosSearchModal";
 import {
   Search,
   Barcode,
@@ -36,6 +39,8 @@ import {
   Coins,
   AlertCircle,
   Receipt,
+  Keyboard,
+  Calculator,
 } from "lucide-react";
 
 export const PosSystem: React.FC = () => {
@@ -81,6 +86,9 @@ export const PosSystem: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRecentInvoicesModal, setShowRecentInvoicesModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
+  const [showEndOfDayModal, setShowEndOfDayModal] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showGlobalSearchModal, setShowGlobalSearchModal] = useState(false);
   const [completedInvoice, setCompletedInvoice] = useState<PosSale | null>(null);
   const [receiptFormat, setReceiptFormat] = useState<"THERMAL" | "A4">("THERMAL");
   const [interactionAlert, setInteractionAlert] = useState<{
@@ -222,6 +230,79 @@ export const PosSystem: React.FC = () => {
     setShowHoldConfirmModal(false);
   };
 
+  // Keyboard Shortcuts Handler (Ctrl+K: Global Search, Alt+S: Save, Alt+P: Print, Alt+C: Clear)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K or F2: Open Global Medicine Search Modal
+      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") || e.key === "F2") {
+        e.preventDefault();
+        setShowGlobalSearchModal(true);
+        return;
+      }
+
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+
+        // Alt + S: Save / Process Sale
+        if (key === "s") {
+          e.preventDefault();
+          if (showPaymentModal) {
+            handleProcessPayment();
+          } else if (cart.length > 0) {
+            setSplitCash(grandTotal);
+            setSplitCard(0);
+            setSplitWallet(0);
+            setSplitInsurance(0);
+            setCashGiven(grandTotal);
+            setShowPaymentModal(true);
+          } else {
+            alert("Cart is empty! Add items before saving or completing sale.");
+          }
+        }
+
+        // Alt + P: Print Receipt
+        if (key === "p") {
+          e.preventDefault();
+          if (completedInvoice) {
+            window.print();
+          } else {
+            setShowRecentInvoicesModal(true);
+          }
+        }
+
+        // Alt + C: Clear Cart
+        if (key === "c") {
+          e.preventDefault();
+          if (cart.length > 0) {
+            if (window.confirm("Are you sure you want to clear the current transaction cart? [Alt+C]")) {
+              clearCart();
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    cart,
+    showPaymentModal,
+    grandTotal,
+    completedInvoice,
+    clearCart,
+    paymentMethod,
+    cashGiven,
+    changeGiven,
+    selectedCustomer,
+    splitCash,
+    splitCard,
+    splitWallet,
+    splitInsurance,
+    splitDeposit,
+    splitCredit,
+    totalSplitPaid,
+  ]);
+
   return (
     <RbacGuard permission="pos_sales">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto h-[calc(100vh-80px)] flex flex-col lg:flex-row gap-6">
@@ -254,25 +335,90 @@ export const PosSystem: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCameraScanner(true)}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
                 title="Use device camera to scan medicine barcodes"
               >
                 <Camera className="h-4 w-4" />
                 <span>Camera Scanner</span>
               </button>
+
+              {/* Digital Pharmacy Calculator Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setShowCalculator(true)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-slate-800/20"
+                title="Open Digital Pharmacy Calculator"
+              >
+                <Calculator className="h-4 w-4 text-blue-400" />
+                <span>Calculator</span>
+              </button>
+
+              {/* End of Day (Z-Report) Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setShowEndOfDayModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20"
+                title="Perform End of Day Reconciliation & Print Z-Report"
+              >
+                <Calculator className="h-4 w-4" />
+                <span>End of Day (Z-Report)</span>
+              </button>
+            </div>
+
+            {/* Keyboard Hotkeys Legend Banner */}
+            <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-extrabold text-[11px]">
+                <Keyboard className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span>POS Hotkeys:</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-mono flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setShowGlobalSearchModal(true)}
+                  className="bg-blue-600 text-white hover:bg-blue-500 px-2.5 py-0.5 rounded font-bold shadow-2xs flex items-center gap-1 transition-all cursor-pointer"
+                  title="Press Ctrl+K or F2 to search medicine by brand or generic name"
+                >
+                  <Search className="h-3 w-3" />
+                  <span>Ctrl+K / F2</span>
+                  <span className="font-sans font-normal opacity-90">Instant Search</span>
+                </button>
+                <span className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-bold shadow-2xs">
+                  Alt+S <span className="font-sans font-normal text-slate-500 dark:text-slate-400">Save/Pay</span>
+                </span>
+                <span className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-bold shadow-2xs">
+                  Alt+P <span className="font-sans font-normal text-slate-500 dark:text-slate-400">Print Receipt</span>
+                </span>
+                <span className="bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-bold shadow-2xs">
+                  Alt+C <span className="font-sans font-normal text-slate-500 dark:text-slate-400">Clear Cart</span>
+                </span>
+              </div>
             </div>
 
             {/* Search & Category Filter Pills */}
             <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <div
+                className="relative flex-1 cursor-pointer"
+                onClick={() => setShowGlobalSearchModal(true)}
+              >
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 <input
                   type="text"
-                  placeholder="Filter catalog by medicine name or generic composition..."
+                  placeholder="Find medicine by brand name or generic composition (Ctrl + K)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-9 pr-20 py-2 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowGlobalSearchModal(true);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-600 text-white flex items-center gap-1 shadow-xs"
+                >
+                  <Search className="h-3 w-3" />
+                  <span>Ctrl+K</span>
+                </button>
               </div>
               <select
                 value={selectedCategory}
@@ -1522,6 +1668,27 @@ export const PosSystem: React.FC = () => {
           isOpen={showRestockModal}
           onClose={() => setShowRestockModal(false)}
           mode="RESTOCK"
+        />
+
+        {/* End of Day (Z-Report) Modal */}
+        <EndOfDayModal
+          isOpen={showEndOfDayModal}
+          onClose={() => setShowEndOfDayModal(false)}
+        />
+
+        {/* Digital Pharmacy Calculator Modal */}
+        <DigitalCalculatorModal
+          isOpen={showCalculator}
+          onClose={() => setShowCalculator(false)}
+        />
+
+        {/* Global Instant Medicine & Generic Search Engine Modal */}
+        <GlobalPosSearchModal
+          isOpen={showGlobalSearchModal}
+          onClose={() => setShowGlobalSearchModal(false)}
+          medicines={medicines}
+          onAddToCart={addToCart}
+          formatCurrency={formatCurrency}
         />
 
         {/* Floating Voice Command Interface for Hands-Free POS Actions */}

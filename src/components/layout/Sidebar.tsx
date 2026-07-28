@@ -139,7 +139,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
       id: "settings",
       label: "ERP Settings",
       icon: Settings,
-      badge: null,
+      badge: currentRole !== "Super Admin" ? "Admin Only" : null,
+      badgeColor: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
     },
   ];
 
@@ -349,8 +350,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
                         key={r.id}
                         onClick={() => {
                           if (isLockedForUser) {
-                            setPendingTargetRole(r.name as UserRole);
-                            setShowSuperAdminPinModal(true);
+                            alert("Access Denied: Role switching to Super Admin is prohibited. Only pre-authenticated Super Admin sessions hold Super Admin privileges.");
                             setIsRoleDropdownOpen(false);
                           } else {
                             setCurrentRole(r.name as UserRole);
@@ -361,21 +361,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
                           currentRole === r.name
                             ? "text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/40"
                             : isLockedForUser
-                            ? "text-amber-800 dark:text-amber-300 font-medium"
+                            ? "text-rose-800 dark:text-rose-300 font-medium opacity-80"
                             : "text-slate-700 dark:text-slate-300"
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate">
                           <span>{r.name}</span>
-                          {isLockedForUser && <Lock className="h-3 w-3 text-amber-600 shrink-0" />}
+                          {isLockedForUser && <Lock className="h-3 w-3 text-rose-600 shrink-0" />}
                         </div>
                         {r.name === "Super Admin" && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
                             isLockedForUser
-                              ? "bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300"
+                              ? "bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300"
                               : "bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300"
                           }`}>
-                            {isLockedForUser ? "PIN Locked" : "Full"}
+                            {isLockedForUser ? "Prohibited" : "Full"}
                           </span>
                         )}
                       </button>
@@ -405,6 +405,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
               {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
             </button>
           </div>
+
+          {!collapsed && (
+            <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 truncate">Jadan Tech Solutions Nig Ltd</span>
+              <a href="tel:07061511390" className="font-mono font-bold text-blue-600 dark:text-blue-400 shrink-0">
+                07061511390
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Super Admin Authorization Modal */}

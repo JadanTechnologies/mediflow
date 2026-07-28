@@ -363,3 +363,28 @@ export interface PayrollProfile {
   bankName: string;
   accountNumber: string;
 }
+
+export interface EndOfDayReport {
+  id: string;
+  reportNumber: string; // e.g., ZREP-20260728-001
+  date: string;
+  branchId: string;
+  branchName: string;
+  cashierId: string;
+  cashierName: string;
+  openingFloat: number;
+  totalSalesCount: number;
+  totalGrossRevenue: number;
+  totalCashSales: number;
+  totalCardSales: number;
+  totalWalletSales: number;
+  totalInsuranceSales: number;
+  totalCreditSales: number;
+  totalSplitSales: number;
+  expectedCashInDrawer: number;
+  actualCashCounted: number;
+  cashDiscrepancy: number;
+  closingNotes: string;
+  closedAt: string;
+  status: "Balanced" | "Over" | "Short";
+}

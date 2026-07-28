@@ -3,6 +3,7 @@ import { PharmacyProvider, usePharmacy } from "./context/PharmacyContext";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { LockScreenModal } from "./components/auth/LockScreenModal";
+import { OfflineSyncBanner } from "./components/pwa/OfflineSyncBanner";
 
 // View Modules
 import { DashboardOverview } from "./components/dashboard/DashboardOverview";
@@ -60,6 +61,7 @@ const MainLayout: React.FC = () => {
 
       {/* Right Column: Header & Active Tab Content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+        <OfflineSyncBanner />
         <Header />
         <main className="flex-1 overflow-y-auto">
           {renderActiveTab()}

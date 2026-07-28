@@ -41,6 +41,8 @@ import {
   MOCK_ATTENDANCE,
   MOCK_PAYROLL_PROFILES,
 } from "../data/mockData";
+import { createCloudBackup, getCloudSyncConfig } from "../services/cloudBackup";
+import { queueOfflineSale } from "../services/offlinePwaService";
 import {
   playSuccessChime,
   playBeep,
@@ -296,6 +298,54 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       clearInterval(intervalId);
     };
   }, [isLocked, settings.securityLockTimeoutMinutes]);
+
+  // Automated Cloud Database Background Sync Timer
+  useEffect(() => {
+    const config = getCloudSyncConfig();
+    if (!config.autoSyncEnabled) return;
+
+    const intervalMinutes = config.syncIntervalMinutes || 5;
+    const intervalMs = Math.max(1, intervalMinutes) * 60 * 1000;
+
+    const runAutoSync = () => {
+      try {
+        createCloudBackup({
+          medicines,
+          sales,
+          customers,
+          suppliers,
+          prescriptions,
+          purchaseOrders: purchases,
+          stockTransfers: transfers,
+          financialRecords: financials,
+          auditLogs,
+          systemUsers,
+          settings,
+        }, config.externalStorageEndpoint ? "CUSTOM_WEBHOOK" : "INTERNAL_CLOUD_VAULT");
+      } catch (err) {
+        console.warn("Automated cloud backup sync background run note:", err);
+      }
+    };
+
+    // Run initial background sync after 10 seconds of app load
+    const initialTimer = setTimeout(runAutoSync, 10000);
+    const syncInterval = setInterval(runAutoSync, intervalMs);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(syncInterval);
+    };
+  }, [
+    medicines.length,
+    sales.length,
+    customers.length,
+    suppliers.length,
+    prescriptions.length,
+    purchases.length,
+    transfers.length,
+    financials.length,
+    auditLogs.length,
+  ]);
 
   // Helper to get user's attendance status today
   const getTodayAttendanceStatus = (userId: string): AttendanceRecord | undefined => {
@@ -857,8 +907,14 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     setSales((prev) => [newSale, ...prev]);
+    if (!navigator.onLine) {
+      queueOfflineSale(newSale);
+    }
     clearCart();
-    addAuditLog("Sale Completed", `Invoice ${newSale.invoiceNumber} processed for ${formatCurrency(grandTotal)} (${paymentMethod})`);
+    addAuditLog(
+      "Sale Completed",
+      `Invoice ${newSale.invoiceNumber} processed for ${formatCurrency(grandTotal)} (${paymentMethod})${!navigator.onLine ? " [OFFLINE QUEUED]" : ""}`
+    );
 
     return newSale;
   };

@@ -1,0 +1,39 @@
+{
+  "name": "MediFlow ERP - Offline Pharmacy POS & Inventory",
+  "short_name": "MediFlow POS",
+  "description": "Enterprise Pharmacy Management & POS System with Offline PWA capabilities",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "POS Sales Station",
+      "short_name": "POS",
+      "description": "Launch point of sale terminal",
+      "url": "/?tab=pos"
+    },
+    {
+      "name": "Inventory Manager",
+      "short_name": "Inventory",
+      "description": "Browse medication stock",
+      "url": "/?tab=inventory"
+    }
+  ]
+}

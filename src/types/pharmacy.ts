@@ -197,6 +197,8 @@ export interface PosSale {
   };
   status: "Completed" | "Returned" | "On Hold";
   loyaltyPointsEarned: number;
+  notes?: string;
+  isOfflineSale?: boolean;
 }
 
 export interface Prescription {

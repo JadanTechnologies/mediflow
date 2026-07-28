@@ -18,9 +18,13 @@ import {
   Calculator as CalcIcon,
   Crown,
   Mic,
+  CloudLightning,
+  Smartphone,
+  WifiOff,
 } from "lucide-react";
 import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
 import { SuperAdminPinModal } from "../auth/SuperAdminPinModal";
+import { CloudBackupSyncModal } from "../settings/CloudBackupSyncModal";
 import { UserRole } from "../../types/pharmacy";
 
 export const Header: React.FC = () => {
@@ -45,6 +49,7 @@ export const Header: React.FC = () => {
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showCloudBackupModal, setShowCloudBackupModal] = useState(false);
   const [showSuperAdminPinModal, setShowSuperAdminPinModal] = useState(false);
   const [pendingTargetRole, setPendingTargetRole] = useState<UserRole>("Super Admin");
 
@@ -144,11 +149,21 @@ export const Header: React.FC = () => {
           <span className="hidden md:inline">Voice Engine</span>
         </button>
 
+        {/* Cloud Database Auto-Sync Button */}
+        <button
+          onClick={() => setShowCloudBackupModal(true)}
+          className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20 text-xs font-semibold transition-colors"
+          title="Cloud Database Backup & Automatic Sync"
+        >
+          <CloudLightning className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span className="hidden lg:inline">Cloud Sync</span>
+        </button>
+
         {/* Digital Calculator Button */}
         <button
           onClick={() => setShowCalculator(true)}
           className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 transition-colors rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60"
-          title="Digital Calculator"
+          title="Digital Calculator (ESC to skip)"
         >
           <CalcIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
         </button>
@@ -407,6 +422,12 @@ export const Header: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Cloud Database Backup & Sync Modal */}
+      <CloudBackupSyncModal
+        isOpen={showCloudBackupModal}
+        onClose={() => setShowCloudBackupModal(false)}
+      />
 
       {/* Digital Calculator Modal */}
       <DigitalCalculatorModal

@@ -10,6 +10,8 @@ import { RestockReorderModal } from "../inventory/RestockReorderModal";
 import { EndOfDayModal } from "./EndOfDayModal";
 import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
 import { GlobalPosSearchModal } from "./GlobalPosSearchModal";
+import { QuickAddCustomerModal } from "./QuickAddCustomerModal";
+import { RecentTransactionsSidebar } from "./RecentTransactionsSidebar";
 import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 import { Tooltip } from "../ui/Tooltip";
 import { playBarcodeScanSuccessChime, playErrorSound, playSuccessChime } from "../../utils/audio";
@@ -45,6 +47,7 @@ import {
   Receipt,
   Keyboard,
   Calculator,
+  UserPlus,
 } from "lucide-react";
 
 export const PosSystem: React.FC = () => {
@@ -91,10 +94,12 @@ export const PosSystem: React.FC = () => {
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRecentInvoicesModal, setShowRecentInvoicesModal] = useState(false);
+  const [showRecentTransactionsSidebar, setShowRecentTransactionsSidebar] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showEndOfDayModal, setShowEndOfDayModal] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showGlobalSearchModal, setShowGlobalSearchModal] = useState(false);
+  const [showQuickAddCustomerModal, setShowQuickAddCustomerModal] = useState(false);
   const [completedInvoice, setCompletedInvoice] = useState<PosSale | null>(null);
   const [receiptFormat, setReceiptFormat] = useState<"THERMAL" | "A4">("THERMAL");
   const [interactionAlert, setInteractionAlert] = useState<{
@@ -399,6 +404,18 @@ export const PosSystem: React.FC = () => {
                 </button>
               </Tooltip>
 
+              {/* Shift Recent Transactions Sidebar Trigger Button */}
+              <Tooltip content="Quickly view & reprint recent receipts from current shift" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setShowRecentTransactionsSidebar(true)}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20"
+                >
+                  <History className="h-4 w-4" />
+                  <span>Recent Shift Sales ({sales.length})</span>
+                </button>
+              </Tooltip>
+
               {/* Digital Pharmacy Calculator Trigger Button */}
               <Tooltip content="Open pharmacy dosage & price calculator" position="bottom">
                 <button
@@ -607,12 +624,12 @@ export const PosSystem: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setShowRecentInvoicesModal(true)}
-                className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 px-2.5 py-1 rounded-full transition-colors"
-                title="View recent receipts & reprint"
+                onClick={() => setShowRecentTransactionsSidebar(true)}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-2.5 py-1 rounded-full transition-colors"
+                title="Open Shift Recent Transactions Sidebar"
               >
                 <History className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Recent</span>
+                <span className="hidden sm:inline">Recent Shift ({sales.length})</span>
               </button>
               {onHoldSales.length > 0 && (
                 <button
@@ -627,17 +644,29 @@ export const PosSystem: React.FC = () => {
           </div>
 
           {/* Patient Selection Dropdown */}
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              Patient / Customer Profile
-            </label>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Patient / Customer Profile
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddCustomerModal(true)}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200/60 dark:border-blue-800/60 shadow-xs"
+                title="Register new customer directly during sale"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>+ Quick Add</span>
+              </button>
+            </div>
+
             <select
               value={selectedCustomer?.id || ""}
               onChange={(e) => {
                 const found = customers.find((c) => c.id === e.target.value);
                 setSelectedCustomer(found || null);
               }}
-              className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none"
+              className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
               <option value="">Walk-In Patient (Standard Retail)</option>
               {customers.map((c) => (
@@ -646,6 +675,32 @@ export const PosSystem: React.FC = () => {
                 </option>
               ))}
             </select>
+
+            {selectedCustomer && (
+              <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-xs flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-bold text-blue-950 dark:text-blue-200 truncate flex items-center gap-1.5">
+                    <span>{selectedCustomer.name}</span>
+                    <span className="px-1.5 py-0.2 rounded bg-blue-200/60 dark:bg-blue-800 text-[10px] font-mono text-blue-800 dark:text-blue-200">
+                      {selectedCustomer.patientCode}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-blue-700 dark:text-blue-300 flex items-center gap-3 mt-0.5">
+                    <span>📞 {selectedCustomer.phone}</span>
+                    <span>⭐ {selectedCustomer.loyaltyPoints} pts</span>
+                    <span>💳 Deposit: ₦{(selectedCustomer.depositBalance || selectedCustomer.walletBalance || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomer(null)}
+                  className="p-1 rounded-lg hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/60 text-slate-400 transition-colors shrink-0"
+                  title="Remove selected customer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Cart Items List */}
@@ -1732,6 +1787,27 @@ export const PosSystem: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Quick Add Customer / Patient Modal */}
+        <QuickAddCustomerModal
+          isOpen={showQuickAddCustomerModal}
+          onClose={() => setShowQuickAddCustomerModal(false)}
+          onCustomerCreated={(newCust) => {
+            setSelectedCustomer(newCust);
+          }}
+        />
+
+        {/* Recent Shift Transactions Sidebar */}
+        <RecentTransactionsSidebar
+          isOpen={showRecentTransactionsSidebar}
+          onClose={() => setShowRecentTransactionsSidebar(false)}
+          sales={sales}
+          onSelectSaleForReprint={(sale) => {
+            setCompletedInvoice(sale);
+            setShowRecentTransactionsSidebar(false);
+          }}
+          formatCurrency={formatCurrency}
+        />
 
         {/* Camera Barcode Scanner Modal */}
         <CameraBarcodeScannerModal

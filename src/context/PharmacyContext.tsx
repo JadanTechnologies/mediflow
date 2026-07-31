@@ -191,7 +191,7 @@ interface PharmacyContextType {
   deleteMedicine: (id: string) => void;
   
   addPrescription: (rx: Partial<Prescription>) => void;
-  addCustomer: (cust: Partial<CustomerPatient>) => void;
+  addCustomer: (cust: Partial<CustomerPatient>) => CustomerPatient;
   addCustomerDeposit: (customerId: string, amount: number, paymentMethod: string, notes?: string) => void;
   recordCreditPayment: (customerId: string, amount: number, paymentMethod: string, notes?: string) => void;
   addSupplier: (sup: Partial<Supplier>) => void;
@@ -1368,10 +1368,10 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     addAuditLog("Prescription Created", `Prescription ${newRx.prescriptionNumber} for ${newRx.patientName}`);
   };
 
-  const addCustomer = (cust: Partial<CustomerPatient>) => {
+  const addCustomer = (cust: Partial<CustomerPatient>): CustomerPatient => {
     const newCust: CustomerPatient = {
-      id: `cust-${Date.now()}`,
-      patientCode: `PAT-${Math.floor(10000 + Math.random() * 90000)}`,
+      id: cust.id || `cust-${Date.now()}`,
+      patientCode: cust.patientCode || `PAT-${Math.floor(10000 + Math.random() * 90000)}`,
       name: cust.name || "New Patient",
       phone: cust.phone || "+234 800 000 0000",
       email: cust.email || "patient@example.ng",
@@ -1382,6 +1382,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       medicalHistory: cust.medicalHistory || [],
       loyaltyPoints: cust.loyaltyPoints || 0,
       walletBalance: cust.walletBalance || 0,
+      depositBalance: cust.depositBalance || 0,
       creditLimit: cust.creditLimit || 50000,
       insuranceProvider: cust.insuranceProvider,
       insurancePolicyNumber: cust.insurancePolicyNumber,
@@ -1390,6 +1391,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     setCustomers((prev) => [newCust, ...prev]);
     addAuditLog("Customer Registered", `Registered patient ${newCust.name} (${newCust.patientCode})`);
+    return newCust;
   };
 
   const addCustomerDeposit = (customerId: string, amount: number, paymentMethod: string, notes?: string) => {

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Delete, Calculator as CalcIcon, Copy, Check, Sparkles, LogOut, Keyboard } from "lucide-react";
 import { playClickSound } from "../../utils/audio";
+import { ModalHeaderPrintButton } from "./ModalHeaderPrintButton";
 
 interface DigitalCalculatorModalProps {
   isOpen: boolean;
@@ -223,7 +224,7 @@ export const DigitalCalculatorModal: React.FC<DigitalCalculatorModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xs sm:max-w-sm shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] shrink-0"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xs sm:max-w-sm shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] shrink-0 printable-modal-content"
           >
             {/* Header */}
             <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/80 shrink-0">
@@ -241,14 +242,17 @@ export const DigitalCalculatorModal: React.FC<DigitalCalculatorModalProps> = ({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 sm:p-2 rounded-xl bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 hover:text-rose-600 text-xs font-bold transition-colors flex items-center gap-1"
-                title="Close Calculator (ESC)"
-              >
-                <span>Close</span>
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <ModalHeaderPrintButton size="sm" />
+                <button
+                  onClick={onClose}
+                  className="p-1.5 sm:p-2 rounded-xl bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 hover:text-rose-600 text-xs font-bold transition-colors flex items-center gap-1"
+                  title="Close Calculator (ESC)"
+                >
+                  <span>Close</span>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Display Screen */}

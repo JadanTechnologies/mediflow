@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 import {
   X,
   Cloud,
@@ -41,13 +42,13 @@ export const CloudBackupSyncModal: React.FC<CloudBackupSyncModalProps> = ({
 }) => {
   const {
     medicines,
-    salesHistory,
+    sales,
     customers,
     suppliers,
     prescriptions,
-    purchaseOrders,
-    stockTransfers,
-    financialRecords,
+    purchases,
+    transfers,
+    financials,
     auditLogs,
     systemUsers,
     settings,
@@ -87,13 +88,13 @@ export const CloudBackupSyncModal: React.FC<CloudBackupSyncModalProps> = ({
     try {
       const fullData = {
         medicines,
-        sales: salesHistory,
+        sales,
         customers,
         suppliers,
         prescriptions,
-        purchaseOrders,
-        stockTransfers,
-        financialRecords,
+        purchaseOrders: purchases,
+        stockTransfers: transfers,
+        financialRecords: financials,
         auditLogs,
         systemUsers,
         settings,
@@ -187,7 +188,7 @@ export const CloudBackupSyncModal: React.FC<CloudBackupSyncModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh]"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh] printable-modal-content"
           >
             {/* Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-900 to-indigo-950 text-white">
@@ -208,12 +209,15 @@ export const CloudBackupSyncModal: React.FC<CloudBackupSyncModalProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={onClose}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <ModalHeaderPrintButton variant="floating" size="sm" />
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Sync Action Banner */}

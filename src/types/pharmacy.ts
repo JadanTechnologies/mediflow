@@ -142,6 +142,14 @@ export interface Category {
   itemCount: number;
 }
 
+export interface DispensingUnit {
+  id: string;
+  name: string;
+  shortCode: string;
+  description?: string;
+  isBaseUnit?: boolean;
+}
+
 export interface PosCartItem {
   medicine: Medicine;
   selectedBatch: string;
@@ -267,6 +275,7 @@ export interface PurchaseOrder {
   paidAmount: number;
   status: "Draft" | "Pending" | "Received" | "Partially Received" | "Cancelled";
   grnNumber?: string;
+  notes?: string;
 }
 
 export interface StockTransfer {
@@ -307,6 +316,38 @@ export interface AuditLog {
   ipAddress: string;
 }
 
+export type StockAdjustmentType =
+  | "PHYSICAL_COUNT_CORRECTION"
+  | "WASTAGE_SPILLAGE"
+  | "EXPIRED_DISCARD"
+  | "DAMAGED_TRANSIT"
+  | "THEFT_DISCREPANCY"
+  | "RETURN_TO_SUPPLIER"
+  | "MANUAL_ADDITION"
+  | "OTHER";
+
+export interface StockAdjustment {
+  id: string;
+  timestamp: string;
+  medicineId: string;
+  medicineName: string;
+  genericName?: string;
+  category?: string;
+  batchNumber?: string;
+  adjustmentType: StockAdjustmentType;
+  previousStock: number;
+  adjustedQuantity: number;
+  newStock: number;
+  unit?: string;
+  reason: string;
+  performedBy: string;
+  userRole: string;
+  branchId?: string;
+  branchName?: string;
+  referenceNumber?: string;
+  notes?: string;
+}
+
 export interface AppSettings {
   companyName: string;
   companyAddress: string;
@@ -325,6 +366,7 @@ export interface AppSettings {
   allowNegativeStock: boolean;
   securityLockTimeoutMinutes: number;
   logoUrl?: string;
+  posAccentColor?: string;
   receiptHeaderMessage?: string;
   receiptFooterMessage?: string;
   reportHeaderNote?: string;

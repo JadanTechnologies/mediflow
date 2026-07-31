@@ -4,11 +4,15 @@ import { Medicine, CustomerPatient, PosSale, PosCartItem } from "../../types/pha
 import { PosSkeleton } from "../ui/ModuleSkeletons";
 import { RbacGuard } from "../auth/RbacGuard";
 import { CameraBarcodeScannerModal } from "./CameraBarcodeScannerModal";
+import { ScanLogWidget, ScanLogEntry } from "./ScanLogWidget";
 import { VoiceCommandAssistant } from "../voice/VoiceCommandAssistant";
 import { RestockReorderModal } from "../inventory/RestockReorderModal";
 import { EndOfDayModal } from "./EndOfDayModal";
 import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
 import { GlobalPosSearchModal } from "./GlobalPosSearchModal";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
+import { Tooltip } from "../ui/Tooltip";
+import { playBarcodeScanSuccessChime, playErrorSound, playSuccessChime } from "../../utils/audio";
 import {
   Search,
   Barcode,
@@ -66,6 +70,8 @@ export const PosSystem: React.FC = () => {
     settings,
   } = usePharmacy();
 
+  const brandAccentColor = settings?.posAccentColor || "#2563eb";
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerPatient | null>(null);
@@ -114,9 +120,52 @@ export const PosSystem: React.FC = () => {
   const [splitDeposit, setSplitDeposit] = useState<number>(0);
   const [splitCredit, setSplitCredit] = useState<number>(0);
 
-  if (isLoading) {
-    return <PosSkeleton />;
-  }
+  // Scan Verification Log State (Last 5 Scans)
+  const [scanLog, setScanLog] = useState<ScanLogEntry[]>([]);
+
+  const recordScanLog = (
+    med: Medicine,
+    source: ScanLogEntry["scanSource"] = "BARCODE_INPUT",
+    overridePrice?: number
+  ) => {
+    const newEntry: ScanLogEntry = {
+      id: `scan-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      medicineId: med.id,
+      medicineName: med.name,
+      genericName: med.genericName,
+      barcode: med.barcode || med.sku || "N/A",
+      unitPrice: overridePrice ?? med.sellingPrice,
+      dosageForm: med.dosageForm || "Unit",
+      strength: med.strength || "",
+      scannedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      timestamp: Date.now(),
+      scanSource: source,
+    };
+    setScanLog((prev) => [newEntry, ...prev.filter((item) => item.id !== newEntry.id)].slice(0, 5));
+  };
+
+  const handleAddToCartWithLog = (
+    med: Medicine,
+    qty: number = 1,
+    unit?: string,
+    unitMultiplier?: number,
+    overridePrice?: number,
+    source: ScanLogEntry["scanSource"] = "CATALOG_CLICK"
+  ) => {
+    addToCart(med, qty, unit, unitMultiplier, overridePrice);
+    recordScanLog(med, source, overridePrice);
+  };
+
+  const handleRemoveFromScanLog = (entry: ScanLogEntry) => {
+    const cartItem = cart.find((i) => i.medicine.id === entry.medicineId);
+    if (cartItem) {
+      if (cartItem.quantity > 1) {
+        updateCartQty(entry.medicineId, -1);
+      } else {
+        removeFromCart(entry.medicineId);
+      }
+    }
+  };
 
   // Filtered Medicines
   const filteredMedicines = medicines.filter((m) => {
@@ -144,9 +193,11 @@ export const PosSystem: React.FC = () => {
       (m) => m.barcode === barcodeInput || m.sku.toLowerCase() === barcodeInput.toLowerCase()
     );
     if (matched) {
-      addToCart(matched, 1);
+      playBarcodeScanSuccessChime();
+      handleAddToCartWithLog(matched, 1, undefined, undefined, undefined, "BARCODE_INPUT");
       setBarcodeInput("");
     } else {
+      playErrorSound();
       alert(`No medicine found matching barcode or SKU: ${barcodeInput}`);
     }
   };
@@ -303,6 +354,10 @@ export const PosSystem: React.FC = () => {
     totalSplitPaid,
   ]);
 
+  if (isLoading) {
+    return <PosSkeleton />;
+  }
+
   return (
     <RbacGuard permission="pos_sales">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto h-[calc(100vh-80px)] flex flex-col lg:flex-row gap-6">
@@ -324,7 +379,8 @@ export const PosSystem: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-2.5 rounded-xl text-white font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5 shadow-xs"
+                  style={{ backgroundColor: brandAccentColor }}
                 >
                   <QrCode className="h-4 w-4" />
                   <span>Scan</span>
@@ -332,37 +388,40 @@ export const PosSystem: React.FC = () => {
               </form>
 
               {/* Device Camera Barcode Scanner Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setShowCameraScanner(true)}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
-                title="Use device camera to scan medicine barcodes"
-              >
-                <Camera className="h-4 w-4" />
-                <span>Camera Scanner</span>
-              </button>
+              <Tooltip content="Use camera to scan medicine barcodes" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setShowCameraScanner(true)}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span>Camera Scanner</span>
+                </button>
+              </Tooltip>
 
               {/* Digital Pharmacy Calculator Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setShowCalculator(true)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-slate-800/20"
-                title="Open Digital Pharmacy Calculator"
-              >
-                <Calculator className="h-4 w-4 text-blue-400" />
-                <span>Calculator</span>
-              </button>
+              <Tooltip content="Open pharmacy dosage & price calculator" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setShowCalculator(true)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-slate-800/20"
+                >
+                  <Calculator className="h-4 w-4 text-blue-400" />
+                  <span>Calculator</span>
+                </button>
+              </Tooltip>
 
               {/* End of Day (Z-Report) Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setShowEndOfDayModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20"
-                title="Perform End of Day Reconciliation & Print Z-Report"
-              >
-                <Calculator className="h-4 w-4" />
-                <span>End of Day (Z-Report)</span>
-              </button>
+              <Tooltip content="Perform daily shift closeout & print Z-Report" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setShowEndOfDayModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20"
+                >
+                  <Calculator className="h-4 w-4" />
+                  <span>End of Day (Z-Report)</span>
+                </button>
+              </Tooltip>
             </div>
 
             {/* Keyboard Hotkeys Legend Banner */}
@@ -414,7 +473,8 @@ export const PosSystem: React.FC = () => {
                     e.stopPropagation();
                     setShowGlobalSearchModal(true);
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-600 text-white flex items-center gap-1 shadow-xs"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 shadow-xs"
+                  style={{ backgroundColor: brandAccentColor }}
                 >
                   <Search className="h-3 w-3" />
                   <span>Ctrl+K</span>
@@ -435,6 +495,15 @@ export const PosSystem: React.FC = () => {
             </div>
           </div>
 
+          {/* Scan Log Visual Verification Widget */}
+          <ScanLogWidget
+            scanLog={scanLog}
+            cart={cart}
+            onRemoveItem={handleRemoveFromScanLog}
+            onClearLog={() => setScanLog([])}
+            formatCurrency={formatCurrency}
+          />
+
           {/* Medicines Grid */}
           <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {filteredMedicines.map((med) => {
@@ -442,7 +511,7 @@ export const PosSystem: React.FC = () => {
               return (
                 <div
                   key={med.id}
-                  onClick={() => !isOutOfStock && addToCart(med, 1)}
+                  onClick={() => !isOutOfStock && handleAddToCartWithLog(med, 1, undefined, undefined, undefined, "CATALOG_CLICK")}
                   className={`p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between cursor-pointer ${
                     isOutOfStock ? "opacity-50 cursor-not-allowed" : "hover:border-blue-500/50"
                   }`}
@@ -472,7 +541,7 @@ export const PosSystem: React.FC = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!isOutOfStock) addToCart(med, 1, med.uomConfig?.baseUnit, 1, med.sellingPrice);
+                            if (!isOutOfStock) handleAddToCartWithLog(med, 1, med.uomConfig?.baseUnit, 1, med.sellingPrice, "CATALOG_CLICK");
                           }}
                           className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:text-indigo-300 font-bold text-[9px] border border-slate-200 dark:border-slate-700"
                         >
@@ -486,7 +555,7 @@ export const PosSystem: React.FC = () => {
                               e.stopPropagation();
                               if (!isOutOfStock) {
                                 const price = conv.sellingPrice || (med.sellingPrice * conv.conversionMultiplier);
-                                addToCart(med, 1, conv.unitName, conv.conversionMultiplier, price);
+                                handleAddToCartWithLog(med, 1, conv.unitName, conv.conversionMultiplier, price, "CATALOG_CLICK");
                               }
                             }}
                             className="px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-bold text-[9px] border border-indigo-200 dark:border-indigo-800"
@@ -531,7 +600,7 @@ export const PosSystem: React.FC = () => {
           {/* Cart Header */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <ShoppingCart className="h-5 w-5" style={{ color: brandAccentColor }} />
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
                 Dispensing Order Cart ({cart.length})
               </h3>
@@ -730,33 +799,38 @@ export const PosSystem: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                onClick={() => {
-                  setHoldCustomerNote(selectedCustomer?.name || "");
-                  setShowHoldConfirmModal(true);
-                }}
-                disabled={cart.length === 0}
-                className="py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/20 text-xs font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <PauseCircle className="h-4 w-4 text-amber-600" />
-                <span>Hold Order ({onHoldSales.length})</span>
-              </button>
-              <button
-                onClick={() => {
-                  // Pre-fill split cash to full amount as convenience starting point
-                  setSplitCash(grandTotal);
-                  setSplitCard(0);
-                  setSplitWallet(0);
-                  setSplitInsurance(0);
-                  setCashGiven(grandTotal);
-                  setShowPaymentModal(true);
-                }}
-                disabled={cart.length === 0}
-                className="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
-              >
-                <CreditCard className="h-4 w-4" />
-                <span>Pay {formatCurrency(grandTotal)}</span>
-              </button>
+              <Tooltip content="Temporarily hold bill for later checkout" shortcut="Alt+H" className="w-full">
+                <button
+                  onClick={() => {
+                    setHoldCustomerNote(selectedCustomer?.name || "");
+                    setShowHoldConfirmModal(true);
+                  }}
+                  disabled={cart.length === 0}
+                  className="w-full py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/20 text-xs font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <PauseCircle className="h-4 w-4 text-amber-600" />
+                  <span>Hold Order ({onHoldSales.length})</span>
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Process cash, card, or split payment" shortcut="Alt+S" className="w-full">
+                <button
+                  onClick={() => {
+                    setSplitCash(grandTotal);
+                    setSplitCard(0);
+                    setSplitWallet(0);
+                    setSplitInsurance(0);
+                    setCashGiven(grandTotal);
+                    setShowPaymentModal(true);
+                  }}
+                  disabled={cart.length === 0}
+                  className="w-full py-2.5 rounded-xl text-white text-xs font-bold shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                  style={{ backgroundColor: brandAccentColor }}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span>Pay {formatCurrency(grandTotal)}</span>
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>
@@ -1494,7 +1568,7 @@ export const PosSystem: React.FC = () => {
         {/* Recent Invoices / Receipts Modal */}
         {showRecentInvoicesModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 printable-modal-content">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <History className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -1502,9 +1576,12 @@ export const PosSystem: React.FC = () => {
                     Recent Sales Receipts
                   </h3>
                 </div>
-                <button onClick={() => setShowRecentInvoicesModal(false)}>
-                  <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ModalHeaderPrintButton size="sm" />
+                  <button onClick={() => setShowRecentInvoicesModal(false)}>
+                    <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2.5 max-h-80 overflow-y-auto">
@@ -1559,7 +1636,7 @@ export const PosSystem: React.FC = () => {
         {/* On-Hold Sales Management Modal */}
         {showHoldModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 printable-modal-content">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <PauseCircle className="h-5 w-5 text-amber-600" />
@@ -1567,9 +1644,12 @@ export const PosSystem: React.FC = () => {
                     On-Hold Orders & Invoices ({onHoldSales.length})
                   </h3>
                 </div>
-                <button onClick={() => setShowHoldModal(false)}>
-                  <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ModalHeaderPrintButton size="sm" />
+                  <button onClick={() => setShowHoldModal(false)}>
+                    <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                  </button>
+                </div>
               </div>
 
               {onHoldSales.length === 0 ? (
@@ -1580,7 +1660,7 @@ export const PosSystem: React.FC = () => {
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   {onHoldSales.map((h) => {
-                    const heldTotal = h.items.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
+                    const heldTotal = h.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
                     return (
                       <div
                         key={h.id}
@@ -1615,7 +1695,7 @@ export const PosSystem: React.FC = () => {
                               <span className="font-semibold truncate max-w-[220px]">
                                 {item.quantity}x {item.medicine.name} ({item.selectedUnit || "Base Unit"})
                               </span>
-                              <span className="font-mono">{formatCurrency(item.sellingPrice * item.quantity)}</span>
+                              <span className="font-mono">{formatCurrency(item.unitPrice * item.quantity)}</span>
                             </div>
                           ))}
                         </div>
@@ -1659,7 +1739,8 @@ export const PosSystem: React.FC = () => {
           onClose={() => setShowCameraScanner(false)}
           medicines={medicines}
           onScanSuccess={(scannedMed) => {
-            addToCart(scannedMed, 1);
+            playBarcodeScanSuccessChime();
+            handleAddToCartWithLog(scannedMed, 1, undefined, undefined, undefined, "CAMERA_SCANNER");
           }}
         />
 
@@ -1687,7 +1768,7 @@ export const PosSystem: React.FC = () => {
           isOpen={showGlobalSearchModal}
           onClose={() => setShowGlobalSearchModal(false)}
           medicines={medicines}
-          onAddToCart={addToCart}
+          onAddToCart={(med, qty) => handleAddToCartWithLog(med, qty, undefined, undefined, undefined, "GLOBAL_SEARCH")}
           formatCurrency={formatCurrency}
         />
 

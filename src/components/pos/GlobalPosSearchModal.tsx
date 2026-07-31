@@ -16,6 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 import { Medicine } from "../../types/pharmacy";
+import { playBarcodeScanSuccessChime } from "../../utils/audio";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 
 interface GlobalPosSearchModalProps {
   isOpen: boolean;
@@ -118,6 +120,7 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
   }, [selectedIndex, filteredMedicines]);
 
   const handleAdd = (med: Medicine) => {
+    playBarcodeScanSuccessChime();
     onAddToCart(med, 1);
     setAddedItems((prev) => ({ ...prev, [med.id]: true }));
     setTimeout(() => {
@@ -140,7 +143,7 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -16 }}
           transition={{ type: "spring", damping: 25, stiffness: 350 }}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] shrink-0"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] shrink-0 printable-modal-content"
         >
           {/* Header Search Input Bar */}
           <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 shrink-0">
@@ -172,6 +175,7 @@ export const GlobalPosSearchModal: React.FC<GlobalPosSearchModalProps> = ({
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold border border-slate-300/60 dark:border-slate-600">
                 <kbd>Ctrl</kbd> + <kbd>K</kbd>
               </span>
+              <ModalHeaderPrintButton size="sm" title="Print Search Results" />
               <button
                 onClick={onClose}
                 className="p-2 rounded-2xl bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-rose-100 hover:text-rose-600 transition-colors"

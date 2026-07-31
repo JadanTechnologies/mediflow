@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
+import { SUPPORTED_LANGUAGES } from "../../i18n/translations";
 import {
   Search,
   Bell,
@@ -21,6 +22,7 @@ import {
   CloudLightning,
   Smartphone,
   WifiOff,
+  Check,
 } from "lucide-react";
 import { DigitalCalculatorModal } from "../ui/DigitalCalculatorModal";
 import { SuperAdminPinModal } from "../auth/SuperAdminPinModal";
@@ -44,14 +46,20 @@ export const Header: React.FC = () => {
     isDarkMode,
     toggleDarkMode,
     roles,
+    language,
+    setLanguage,
+    t,
   } = usePharmacy();
 
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCloudBackupModal, setShowCloudBackupModal] = useState(false);
   const [showSuperAdminPinModal, setShowSuperAdminPinModal] = useState(false);
   const [pendingTargetRole, setPendingTargetRole] = useState<UserRole>("Super Admin");
+
+  const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   const lowStockMeds = medicines.filter((m) => m.stock <= m.minStock);
   const nearExpiryBatches: { medicineName: string; batchNumber: string; daysRemaining: number; bracket: string }[] = [];
@@ -87,7 +95,7 @@ export const Header: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 shrink-0" />
           <input
             type="text"
-            placeholder="Search medications, patients, barcode..."
+            placeholder={t("header.searchPlaceholder")}
             value={globalSearchQuery}
             onChange={(e) => setGlobalSearchQuery(e.target.value)}
             className="bg-transparent border-none text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-0 ml-2 w-full"
@@ -105,6 +113,68 @@ export const Header: React.FC = () => {
 
       {/* Quick Action Triggers */}
       <div className="flex items-center space-x-2.5">
+        {/* Language Selector Popover */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowLanguageDropdown(!showLanguageDropdown);
+              setShowUserDropdown(false);
+              setShowNotificationDrawer(false);
+            }}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-[11px] font-extrabold transition-all shadow-2xs"
+            title="Switch Regional Language (i18n)"
+          >
+            <span className="text-sm leading-none">{currentLangObj.flag}</span>
+            <span className="hidden sm:inline">{currentLangObj.nativeName}</span>
+            <span className="sm:hidden uppercase">{currentLangObj.code}</span>
+          </button>
+
+          {showLanguageDropdown && (
+            <div className="absolute right-0 top-11 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl z-50 p-3 space-y-1 animate-fade-in">
+              <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Globe className="h-3 w-3 text-blue-500" />
+                  <span>{t("header.language")} / Regional</span>
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold">
+                  i18n
+                </span>
+              </div>
+
+              <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
+                {SUPPORTED_LANGUAGES.map((langOpt) => {
+                  const isSelected = language === langOpt.code;
+                  return (
+                    <button
+                      key={langOpt.code}
+                      onClick={() => {
+                        setLanguage(langOpt.code);
+                        setShowLanguageDropdown(false);
+                      }}
+                      className={`w-full px-3 py-2 rounded-2xl text-left text-xs font-semibold flex items-center justify-between transition-all ${
+                        isSelected
+                          ? "bg-blue-600 text-white font-bold shadow-xs"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-base">{langOpt.flag}</span>
+                        <div>
+                          <p className="leading-tight">{langOpt.nativeName}</p>
+                          <p className={`text-[9px] ${isSelected ? "text-blue-100" : "text-slate-400"}`}>
+                            {langOpt.name} {langOpt.dir === "rtl" ? "• (RTL)" : ""}
+                          </p>
+                        </div>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-white shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Active Currency Badge */}
         <button
           onClick={() => setActiveTab("settings")}

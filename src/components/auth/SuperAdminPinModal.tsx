@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ShieldAlert, ShieldCheck, Lock, X, KeyRound, CheckCircle2 } from "lucide-react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { UserRole } from "../../types/pharmacy";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 
 interface SuperAdminPinModalProps {
   isOpen: boolean;
@@ -81,14 +82,17 @@ export const SuperAdminPinModal: React.FC<SuperAdminPinModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative my-auto"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative my-auto printable-modal-content"
           >
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <ModalHeaderPrintButton size="sm" />
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
             <div className="text-center space-y-2 pt-2">
               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto shadow-inner">

@@ -7,6 +7,12 @@ import { QRCodeSVG } from "qrcode.react";
 import { BulkImportModal } from "./BulkImportModal";
 import { UomManagerModal } from "./UomManagerModal";
 import { RestockReorderModal } from "./RestockReorderModal";
+import { CategoryManagerModal } from "./CategoryManagerModal";
+import { UnitManagerModal } from "./UnitManagerModal";
+import { StockAdjustmentModal } from "./StockAdjustmentModal";
+import { StockAdjustmentLogModal } from "./StockAdjustmentLogModal";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
+import { Tooltip } from "../ui/Tooltip";
 import {
   Pill,
   Search,
@@ -27,19 +33,24 @@ import {
   FileSpreadsheet,
   Layers,
   PackagePlus,
+  FolderPlus,
   Truck,
+  SlidersHorizontal,
+  ClipboardList,
 } from "lucide-react";
 
 export const MedicineManager: React.FC = () => {
   const {
     medicines,
     categories,
+    dispensingUnits,
     branches,
     currentBranch,
     addMedicine,
     updateMedicine,
     deleteMedicine,
     addStockTransfer,
+    stockAdjustments,
     formatCurrency,
     isLoading,
   } = usePharmacy();
@@ -54,6 +65,8 @@ export const MedicineManager: React.FC = () => {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showUnitModal, setShowUnitModal] = useState(false);
   const [showUomModal, setShowUomModal] = useState(false);
   const [uomMedId, setUomMedId] = useState<string | undefined>(undefined);
   const [editingMed, setEditingMed] = useState<Medicine | null>(null);
@@ -63,6 +76,9 @@ export const MedicineManager: React.FC = () => {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [restockTargetMed, setRestockTargetMed] = useState<Medicine | null>(null);
   const [restockModalMode, setRestockModalMode] = useState<"RESTOCK" | "REORDER">("RESTOCK");
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [adjustmentTargetMed, setAdjustmentTargetMed] = useState<Medicine | null>(null);
+  const [showAdjustmentLogModal, setShowAdjustmentLogModal] = useState(false);
 
   // Batch QR Label Settings
   const [labelCols, setLabelCols] = useState<2 | 3 | 4>(3);
@@ -193,64 +209,119 @@ export const MedicineManager: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setRestockTargetMed(null);
-                setRestockModalMode("RESTOCK");
-                setShowRestockModal(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
-            >
-              <PackagePlus className="h-4 w-4" />
-              <span>Restock Stock</span>
-            </button>
+            <Tooltip content="Add incoming inventory batches & update cost price" shortcut="Alt+R">
+              <button
+                onClick={() => {
+                  setRestockTargetMed(null);
+                  setRestockModalMode("RESTOCK");
+                  setShowRestockModal(true);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
+              >
+                <PackagePlus className="h-4 w-4" />
+                <span>Restock Stock</span>
+              </button>
+            </Tooltip>
 
-            <button
-              onClick={() => {
-                setRestockTargetMed(null);
-                setRestockModalMode("REORDER");
-                setShowRestockModal(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition-all flex items-center gap-2"
-            >
-              <Truck className="h-4 w-4" />
-              <span>Reorder (P.O.)</span>
-            </button>
+            <Tooltip content="Draft supplier purchase order requisition for low stock items">
+              <button
+                onClick={() => {
+                  setRestockTargetMed(null);
+                  setRestockModalMode("REORDER");
+                  setShowRestockModal(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition-all flex items-center gap-2"
+              >
+                <Truck className="h-4 w-4" />
+                <span>Reorder (P.O.)</span>
+              </button>
+            </Tooltip>
 
-            <button
-              onClick={() => {
-                setUomMedId(undefined);
-                setShowUomModal(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2"
-            >
-              <Layers className="h-4 w-4" />
-              <span>Unit Conversions (UOM)</span>
-            </button>
+            <Tooltip content="Manual stock count correction, wastage or damage logging" shortcut="Alt+A">
+              <button
+                onClick={() => {
+                  setAdjustmentTargetMed(null);
+                  setShowAdjustmentModal(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all flex items-center gap-2"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>Manual Stock Adjust</span>
+              </button>
+            </Tooltip>
 
-            <button
-              onClick={() => setShowBulkImportModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              <span>Bulk CSV Import</span>
-            </button>
+            <Tooltip content="View audit trail of stock overrides & staff justifications">
+              <button
+                onClick={() => setShowAdjustmentLogModal(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold text-xs shadow-md shadow-slate-900/20 transition-all flex items-center gap-2 border border-slate-700/60"
+              >
+                <ClipboardList className="h-4 w-4 text-blue-400" />
+                <span>Stock Audit Log</span>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-blue-500 text-white">
+                  {stockAdjustments.length}
+                </span>
+              </button>
+            </Tooltip>
 
-            <button
-              onClick={() => {
-                if (selectedMedIds.length === 0) {
-                  // If none selected, default to selecting all filtered medicines
-                  setSelectedMedIds(filteredMedicines.map((m) => m.id));
-                }
-                setShowBatchQrModal(true);
-              }}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 border border-slate-700"
-            >
-              <QrCode className="h-4 w-4 text-emerald-400" />
-              <span>
-                Batch Print QR Labels {selectedMedIds.length > 0 ? `(${selectedMedIds.length})` : ""}
-              </span>
-            </button>
+            <Tooltip content="Create & manage therapeutic drug classifications">
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all flex items-center gap-2"
+              >
+                <FolderPlus className="h-4 w-4" />
+                <span>Categories ({categories.length})</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Configure dosage forms e.g. Tablets, Vials, Ampoules">
+              <button
+                onClick={() => setShowUnitModal(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-md shadow-teal-600/20 transition-all flex items-center gap-2"
+              >
+                <PackagePlus className="h-4 w-4" />
+                <span>Dispensing Units ({dispensingUnits.length})</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Configure unit conversions e.g. Box to Strips ratio">
+              <button
+                onClick={() => {
+                  setUomMedId(undefined);
+                  setShowUomModal(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2"
+              >
+                <Layers className="h-4 w-4" />
+                <span>Unit Conversions (UOM)</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Batch import medicines from Excel or CSV file">
+              <button
+                onClick={() => setShowBulkImportModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Bulk CSV Import</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Generate printable QR code labels for shelf tags">
+              <button
+                onClick={() => {
+                  if (selectedMedIds.length === 0) {
+                    setSelectedMedIds(filteredMedicines.map((m) => m.id));
+                  }
+                  setShowBatchQrModal(true);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 border border-slate-700"
+              >
+                <QrCode className="h-4 w-4 text-emerald-400" />
+                <span>
+                  Batch Print QR Labels {selectedMedIds.length > 0 ? `(${selectedMedIds.length})` : ""}
+                </span>
+              </button>
+            </Tooltip>
 
             <button
               onClick={() => {
@@ -523,6 +594,17 @@ export const MedicineManager: React.FC = () => {
 
                           <button
                             onClick={() => {
+                              setAdjustmentTargetMed(med);
+                              setShowAdjustmentModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            title="Manual Stock Adjustment (Wastage, Expired, Physical Count)"
+                          >
+                            <SlidersHorizontal className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                          </button>
+
+                          <button
+                            onClick={() => {
                               setRestockTargetMed(med);
                               setRestockModalMode("REORDER");
                               setShowRestockModal(true);
@@ -591,19 +673,22 @@ export const MedicineManager: React.FC = () => {
         {/* Add / Edit Medicine Modal */}
         {(showAddModal || editingMed) && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto printable-modal-content">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                   {editingMed ? "Edit Pharmaceutical Item" : "Add New Medicine SKU"}
                 </h3>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingMed(null);
-                  }}
-                >
-                  <X className="h-5 w-5 text-slate-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ModalHeaderPrintButton size="sm" />
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingMed(null);
+                    }}
+                  >
+                    <X className="h-5 w-5 text-slate-400" />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleSaveMedicine} className="space-y-4 text-xs">
@@ -637,13 +722,23 @@ export const MedicineManager: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                      Therapeutic Category
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-600 dark:text-slate-300 block">
+                        Therapeutic Category
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCategoryModal(true)}
+                        className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Create New</span>
+                      </button>
+                    </div>
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 font-medium"
                     >
                       {categories.map((c) => (
                         <option key={c.id} value={c.name}>
@@ -654,16 +749,30 @@ export const MedicineManager: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                      Dosage Form
-                    </label>
-                    <input
-                      type="text"
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-600 dark:text-slate-300 block">
+                        Dosage Form / Dispensing Unit
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowUnitModal(true)}
+                        className="text-[11px] font-extrabold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Create New</span>
+                      </button>
+                    </div>
+                    <select
                       value={formData.dosageForm || "Tablet"}
                       onChange={(e) => setFormData({ ...formData, dosageForm: e.target.value })}
-                      placeholder="Tablet / Syrup / Inhaler"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-                    />
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 font-medium"
+                    >
+                      {dispensingUnits.map((u) => (
+                        <option key={u.id} value={u.name}>
+                          {u.name} ({u.shortCode})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -870,7 +979,7 @@ export const MedicineManager: React.FC = () => {
         {/* Batch Print QR Labels Modal */}
         {showBatchQrModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-5xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[92vh] flex flex-col">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-5xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[92vh] flex flex-col printable-modal-content">
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div className="flex items-center gap-3">
@@ -887,12 +996,15 @@ export const MedicineManager: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setShowBatchQrModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ModalHeaderPrintButton size="sm" />
+                  <button
+                    onClick={() => setShowBatchQrModal(false)}
+                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Controls and Customization Header */}
@@ -1182,6 +1294,29 @@ export const MedicineManager: React.FC = () => {
           onClose={() => setShowRestockModal(false)}
           selectedMedicine={restockTargetMed}
           mode={restockModalMode}
+        />
+        {/* Category Manager Modal */}
+        <CategoryManagerModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          onSelectCategory={(catName) => setFormData((prev) => ({ ...prev, category: catName }))}
+        />
+        {/* Dispensing Unit / Dosage Form Manager Modal */}
+        <UnitManagerModal
+          isOpen={showUnitModal}
+          onClose={() => setShowUnitModal(false)}
+          onSelectUnit={(unitName) => setFormData((prev) => ({ ...prev, dosageForm: unitName }))}
+        />
+        {/* Manual Stock Adjustment Modal */}
+        <StockAdjustmentModal
+          isOpen={showAdjustmentModal}
+          onClose={() => setShowAdjustmentModal(false)}
+          selectedMedicine={adjustmentTargetMed}
+        />
+        {/* Stock Adjustment Audit Log Modal */}
+        <StockAdjustmentLogModal
+          isOpen={showAdjustmentLogModal}
+          onClose={() => setShowAdjustmentLogModal(false)}
         />
       </div>
     </RbacGuard>

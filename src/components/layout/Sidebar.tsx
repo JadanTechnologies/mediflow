@@ -58,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
     setIsDarkMode,
     medicines,
     prescriptions,
+    t,
   } = usePharmacy();
 
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -72,46 +73,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
   const navItems = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: t("nav.dashboard"),
       icon: LayoutDashboard,
       badge: null,
     },
     {
       id: "pos",
-      label: "POS Dispensing",
+      label: t("nav.pos"),
       icon: ShoppingCart,
       badge: "Fast",
       badgeColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     },
     {
       id: "inventory",
-      label: "Medicines & Stock",
+      label: t("nav.medicines"),
       icon: Pill,
       badge: lowStockCount > 0 ? `${lowStockCount} Low` : null,
       badgeColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     },
     {
       id: "prescriptions",
-      label: "Prescriptions & OCR",
+      label: t("nav.prescriptions"),
       icon: FileText,
       badge: pendingRxCount > 0 ? `${pendingRxCount} Rx` : null,
       badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
     {
       id: "purchases",
-      label: "Purchases & Suppliers",
+      label: t("nav.purchases"),
       icon: Truck,
       badge: null,
     },
     {
       id: "customers",
-      label: "Patients & Customers",
+      label: t("nav.customers"),
       icon: Users,
       badge: null,
     },
     {
       id: "financials",
-      label: "Financials & Closing",
+      label: t("nav.financials"),
       icon: DollarSign,
       badge: null,
     },
@@ -124,20 +125,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
     },
     {
       id: "reports",
-      label: "Reports & Logs",
+      label: t("nav.reports"),
       icon: BarChart3,
       badge: null,
     },
     {
       id: "attendance",
-      label: "Staff Attendance & Payroll",
+      label: t("nav.attendance"),
       icon: Clock,
       badge: "HR",
       badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
     {
       id: "settings",
-      label: "ERP Settings",
+      label: t("nav.settings"),
       icon: Settings,
       badge: currentRole !== "Super Admin" ? "Admin Only" : null,
       badgeColor: "bg-rose-500/10 text-rose-600 dark:text-rose-400",

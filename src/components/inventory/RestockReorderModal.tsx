@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { Medicine, Supplier } from "../../types/pharmacy";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 import {
   X,
   PackagePlus,
@@ -149,7 +150,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
       orderDate: new Date().toISOString().split("T")[0],
       expectedDeliveryDate: new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
       status: "Pending",
-      totalCost: totalCost,
+      totalAmount: totalCost,
       notes: reorderNotes || `Auto reorder for ${currentMedicine?.name}`,
       items: [
         {
@@ -188,7 +189,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 printable-modal-content"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
@@ -208,12 +209,15 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <ModalHeaderPrintButton size="sm" />
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Tab Switcher */}
@@ -266,7 +270,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                   >
                     {medicines.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} ({m.strength}) • Current Stock: {m.stock} {m.packagingUnit} {m.stock <= m.minStock ? "⚠️ LOW" : ""}
+                        {m.name} ({m.strength}) • Current Stock: {m.stock} {m.packSize} {m.stock <= m.minStock ? "⚠️ LOW" : ""}
                       </option>
                     ))}
                   </select>
@@ -277,7 +281,7 @@ export const RestockReorderModal: React.FC<RestockReorderModalProps> = ({
                     <div>
                       <span className="text-[10px] text-slate-400 font-bold block">Current Stock</span>
                       <span className={`font-mono font-extrabold text-sm ${currentMedicine.stock <= currentMedicine.minStock ? "text-rose-600" : "text-emerald-600"}`}>
-                        {currentMedicine.stock} {currentMedicine.packagingUnit}s
+                        {currentMedicine.stock} {currentMedicine.packSize}s
                       </span>
                     </div>
                     <div>

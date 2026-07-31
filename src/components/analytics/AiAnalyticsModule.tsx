@@ -187,7 +187,7 @@ export const AiAnalyticsModule: React.FC = () => {
           totalCost: item.estimatedReorderCost,
         },
       ],
-      totalCost: item.estimatedReorderCost,
+      totalAmount: item.estimatedReorderCost,
       status: "Pending",
       notes: `AI-Generated Purchase Order based on 30-day Sales History Velocity (${item.dailyVelocity} units/day). Rationale: ${item.aiRationale}`,
     });
@@ -225,7 +225,7 @@ export const AiAnalyticsModule: React.FC = () => {
         orderDate: new Date().toISOString().split("T")[0],
         expectedDeliveryDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
         items: poItems,
-        totalCost: totalPoCost,
+        totalAmount: totalPoCost,
         status: "Pending",
         notes: `AI Bulk Sales Velocity Reorder for ${items.length} high-turnover items. Total Budget: ${formatCurrency(totalPoCost)}.`,
       });

@@ -4,6 +4,7 @@ import {
   Branch,
   Medicine,
   Category,
+  DispensingUnit,
   Supplier,
   CustomerPatient,
   Prescription,
@@ -13,6 +14,7 @@ import {
   StockTransfer,
   FinancialRecord,
   AuditLog,
+  StockAdjustment,
   AppSettings,
   RoleDefinition,
   SystemUser,
@@ -25,6 +27,7 @@ import {
 import {
   MOCK_BRANCHES,
   MOCK_CATEGORIES,
+  MOCK_DISPENSING_UNITS,
   MOCK_SUPPLIERS,
   MOCK_MEDICINES,
   MOCK_CUSTOMERS,
@@ -34,6 +37,7 @@ import {
   MOCK_STOCK_TRANSFERS,
   MOCK_FINANCIALS,
   MOCK_AUDIT_LOGS,
+  MOCK_STOCK_ADJUSTMENTS,
   MOCK_SETTINGS,
   MOCK_ROLES,
   MOCK_USERS,
@@ -43,7 +47,12 @@ import {
   MOCK_PAYROLL_PROFILES,
 } from "../data/mockData";
 import { createCloudBackup, getCloudSyncConfig } from "../services/cloudBackup";
-import { queueOfflineSale } from "../services/offlinePwaService";
+import {
+  queueOfflineSale,
+  queueOfflineCreditSale,
+  queueOfflineHeldInvoice,
+  isOfflineModeActive,
+} from "../services/offlinePwaService";
 import {
   playSuccessChime,
   playBeep,
@@ -51,8 +60,12 @@ import {
   playHoldSound,
   playClickSound,
 } from "../utils/audio";
+import { SupportedLanguage, translate, SUPPORTED_LANGUAGES } from "../i18n/translations";
 
 interface PharmacyContextType {
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
   currentBranch: Branch;
@@ -67,6 +80,15 @@ interface PharmacyContextType {
   // Data Collections
   medicines: Medicine[];
   categories: Category[];
+  addCategory: (category: Omit<Category, "id" | "itemCount">) => Category;
+  updateCategory: (id: string, updated: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
+
+  dispensingUnits: DispensingUnit[];
+  addDispensingUnit: (unit: Omit<DispensingUnit, "id">) => DispensingUnit;
+  updateDispensingUnit: (id: string, updated: Partial<DispensingUnit>) => void;
+  deleteDispensingUnit: (id: string) => void;
+
   suppliers: Supplier[];
   customers: CustomerPatient[];
   prescriptions: Prescription[];
@@ -75,6 +97,12 @@ interface PharmacyContextType {
   transfers: StockTransfer[];
   financials: FinancialRecord[];
   auditLogs: AuditLog[];
+  stockAdjustments: StockAdjustment[];
+  adjustStock: (
+    adjustment: Omit<StockAdjustment, "id" | "timestamp" | "previousStock" | "newStock"> & {
+      customPreviousStock?: number;
+    }
+  ) => StockAdjustment;
   settings: AppSettings;
   attendanceRecords: AttendanceRecord[];
   payrollProfiles: PayrollProfile[];
@@ -198,12 +226,48 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   });
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>("");
 
+  // i18n Language State
+  const [language, setLanguageState] = useState<SupportedLanguage>(() => {
+    const saved = localStorage.getItem("mediflow_language");
+    if (saved && ["en", "ha", "yo", "ig", "fr", "ar", "es"].includes(saved)) {
+      return saved as SupportedLanguage;
+    }
+    return "en";
+  });
+
+  useEffect(() => {
+    const langOpt = SUPPORTED_LANGUAGES.find((l) => l.code === language);
+    if (langOpt?.dir === "rtl") {
+      document.documentElement.dir = "rtl";
+    } else {
+      document.documentElement.dir = "ltr";
+    }
+  }, [language]);
+
+  const setLanguage = (lang: SupportedLanguage) => {
+    setLanguageState(lang);
+    localStorage.setItem("mediflow_language", lang);
+    const langOpt = SUPPORTED_LANGUAGES.find((l) => l.code === lang);
+    if (langOpt?.dir === "rtl") {
+      document.documentElement.dir = "rtl";
+    } else {
+      document.documentElement.dir = "ltr";
+    }
+    addAuditLog("Language Switched", `Switched system interface language to ${langOpt?.name || lang}`);
+  };
+
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    return translate(language, key, params);
+  };
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
       localStorage.setItem("mediflow_theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
       localStorage.setItem("mediflow_theme", "light");
     }
   }, [isDarkMode]);
@@ -224,7 +288,28 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Data Collections
   const [medicines, setMedicines] = useState<Medicine[]>(MOCK_MEDICINES);
-  const [categories] = useState<Category[]>(MOCK_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const saved = localStorage.getItem("mediflow_categories");
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+    }
+    return MOCK_CATEGORIES;
+  });
+  const [dispensingUnits, setDispensingUnits] = useState<DispensingUnit[]>(() => {
+    const saved = localStorage.getItem("mediflow_dispensing_units");
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+    }
+    return MOCK_DISPENSING_UNITS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("mediflow_categories", JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem("mediflow_dispensing_units", JSON.stringify(dispensingUnits));
+  }, [dispensingUnits]);
   const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS);
   const [customers, setCustomers] = useState<CustomerPatient[]>(MOCK_CUSTOMERS);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(MOCK_PRESCRIPTIONS);
@@ -233,10 +318,51 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [transfers, setTransfers] = useState<StockTransfer[]>(MOCK_STOCK_TRANSFERS);
   const [financials, setFinancials] = useState<FinancialRecord[]>(MOCK_FINANCIALS);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
+  const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(MOCK_STOCK_ADJUSTMENTS);
   const [settings, setSettings] = useState<AppSettings>(MOCK_SETTINGS);
+
+  useEffect(() => {
+    const accent = settings?.posAccentColor || "#2563eb";
+    document.documentElement.style.setProperty("--pos-accent-color", accent);
+  }, [settings?.posAccentColor]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
   const [payrollProfiles] = useState<PayrollProfile[]>(MOCK_PAYROLL_PROFILES);
   const [endOfDayReports, setEndOfDayReports] = useState<EndOfDayReport[]>([]);
+
+  const addAuditLog = (action: string, details: string) => {
+    const newLog: AuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+      userName: currentUser ? currentUser.name : `${currentRole} User`,
+      userRole: currentRole,
+      action,
+      details,
+      ipAddress: "192.168.1.100",
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  // Multi-Currency Formatter Helper
+  const formatCurrency = (amount: number): string => {
+    const safeNum = typeof amount === "number" && !isNaN(amount) ? amount : Number(amount) || 0;
+    const activeCurr = settings?.currencies?.find((c) => c.code === settings?.currencyCode) || {
+      code: "NGN",
+      symbol: "₦",
+      rateAgainstNGN: 1.0,
+    };
+
+    let convertedAmount = safeNum;
+    if (activeCurr.code !== "NGN") {
+      convertedAmount = safeNum / (activeCurr.rateAgainstNGN || 1);
+    }
+
+    const finalNum = typeof convertedAmount === "number" && !isNaN(convertedAmount) ? convertedAmount : 0;
+
+    return `${activeCurr.symbol || "₦"}${finalNum.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   const saveEndOfDayReport = (reportData: Omit<EndOfDayReport, "id" | "reportNumber" | "closedAt">): EndOfDayReport => {
     const timestampStr = new Date().toISOString().replace(/\D/g, "").slice(0, 8);
@@ -553,42 +679,6 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, 400);
   };
 
-  const addAuditLog = (action: string, details: string) => {
-    const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
-      userName: currentUser ? currentUser.name : `${currentRole} User`,
-      userRole: currentRole,
-      action,
-      details,
-      ipAddress: "192.168.1.100",
-    };
-    setAuditLogs((prev) => [newLog, ...prev]);
-  };
-
-  // Multi-Currency Formatter Helper
-  const formatCurrency = (amount: number): string => {
-    const safeNum = typeof amount === "number" && !isNaN(amount) ? amount : Number(amount) || 0;
-    const activeCurr = settings?.currencies?.find((c) => c.code === settings?.currencyCode) || {
-      code: "NGN",
-      symbol: "₦",
-      rateAgainstNGN: 1.0,
-    };
-
-    let convertedAmount = safeNum;
-    if (activeCurr.code !== "NGN") {
-      // If code is foreign currency, rateAgainstNGN gives NGN value per 1 foreign currency unit (e.g., 1550 NGN per $1 USD)
-      convertedAmount = safeNum / (activeCurr.rateAgainstNGN || 1);
-    }
-
-    const finalNum = typeof convertedAmount === "number" && !isNaN(convertedAmount) ? convertedAmount : 0;
-
-    return `${activeCurr.symbol || "₦"}${finalNum.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  };
-
   // RBAC Permission Check
   const hasPermission = (key: PermissionKey): boolean => {
     if (currentRole === "Super Admin") return true;
@@ -826,7 +916,16 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     setOnHoldSales((prev) => [holdItem, ...prev]);
     clearCart();
-    addAuditLog("Sale Held", `Held cart with ${cart.length} items for ${customerName}`);
+
+    const offline = isOfflineModeActive();
+    if (offline) {
+      queueOfflineHeldInvoice(holdItem);
+    }
+
+    addAuditLog(
+      "Sale Held",
+      `Held cart with ${cart.length} items for ${customerName}${offline ? " [OFFLINE QUEUED]" : ""}`
+    );
   };
 
   const resumeSale = (holdId: string) => {
@@ -938,13 +1037,27 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     setSales((prev) => [newSale, ...prev]);
-    if (!navigator.onLine) {
-      queueOfflineSale(newSale);
+
+    const offline = isOfflineModeActive();
+    if (offline) {
+      const isCredit =
+        paymentMethod === "Credit / Account" ||
+        Boolean(paymentDetails?.creditCharged && paymentDetails.creditCharged > 0) ||
+        Boolean(paymentDetails?.creditAmount && paymentDetails.creditAmount > 0);
+
+      if (isCredit) {
+        queueOfflineCreditSale(newSale, customer);
+      } else {
+        queueOfflineSale(newSale);
+      }
     }
+
     clearCart();
     addAuditLog(
       "Sale Completed",
-      `Invoice ${newSale.invoiceNumber} processed for ${formatCurrency(grandTotal)} (${paymentMethod})${!navigator.onLine ? " [OFFLINE QUEUED]" : ""}`
+      `Invoice ${newSale.invoiceNumber} processed for ${formatCurrency(grandTotal)} (${paymentMethod})${
+        offline ? " [OFFLINE QUEUED]" : ""
+      }`
     );
 
     return newSale;
@@ -995,6 +1108,60 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     setMedicines((prev) => [newMed, ...prev]);
     addAuditLog("Medicine Added", `Added new product ${newMed.name} (${newMed.strength})`);
+  };
+
+  const addCategory = (data: Omit<Category, "id" | "itemCount">): Category => {
+    const newCat: Category = {
+      ...data,
+      id: `cat-${Date.now()}`,
+      itemCount: 0,
+    };
+    setCategories((prev) => [...prev, newCat]);
+    addAuditLog("Category Created", `Created medicine category "${newCat.name}" (${newCat.code})`);
+    return newCat;
+  };
+
+  const updateCategory = (id: string, updated: Partial<Category>) => {
+    const oldCat = categories.find((c) => c.id === id);
+    setCategories((prev) =>
+      prev.map((cat) => (cat.id === id ? { ...cat, ...updated } : cat))
+    );
+    // If category name was changed, update existing medicines with old category name
+    if (updated.name && oldCat && oldCat.name !== updated.name) {
+      setMedicines((prev) =>
+        prev.map((m) => (m.category === oldCat.name ? { ...m, category: updated.name! } : m))
+      );
+    }
+    addAuditLog("Category Updated", `Updated category ID ${id}`);
+  };
+
+  const deleteCategory = (id: string) => {
+    const target = categories.find((c) => c.id === id);
+    setCategories((prev) => prev.filter((c) => c.id !== id));
+    addAuditLog("Category Deleted", `Deleted category "${target?.name || id}"`);
+  };
+
+  const addDispensingUnit = (data: Omit<DispensingUnit, "id">): DispensingUnit => {
+    const newUnit: DispensingUnit = {
+      ...data,
+      id: `unit-${Date.now()}`,
+    };
+    setDispensingUnits((prev) => [...prev, newUnit]);
+    addAuditLog("Unit Created", `Created dispensing unit "${newUnit.name}" (${newUnit.shortCode})`);
+    return newUnit;
+  };
+
+  const updateDispensingUnit = (id: string, updated: Partial<DispensingUnit>) => {
+    setDispensingUnits((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, ...updated } : u))
+    );
+    addAuditLog("Unit Updated", `Updated dispensing unit ID ${id}`);
+  };
+
+  const deleteDispensingUnit = (id: string) => {
+    const target = dispensingUnits.find((u) => u.id === id);
+    setDispensingUnits((prev) => prev.filter((u) => u.id !== id));
+    addAuditLog("Unit Deleted", `Deleted dispensing unit "${target?.name || id}"`);
   };
 
   const updateMedicine = (id: string, updated: Partial<Medicine>) => {
@@ -1089,6 +1256,90 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       "Stock Restocked",
       `Restocked +${quantityAdded} units for ${medName}. Batch #${batchDetails.batchNumber} logged.`
     );
+  };
+
+  const adjustStock = (
+    adjustmentData: Omit<StockAdjustment, "id" | "timestamp" | "previousStock" | "newStock"> & {
+      customPreviousStock?: number;
+    }
+  ): StockAdjustment => {
+    const targetMed = medicines.find((m) => m.id === adjustmentData.medicineId);
+    const prevStock = adjustmentData.customPreviousStock ?? (targetMed ? targetMed.stock : 0);
+    const newStock = Math.max(0, prevStock + adjustmentData.adjustedQuantity);
+
+    if (targetMed) {
+      setMedicines((prev) =>
+        prev.map((med) => {
+          if (med.id === adjustmentData.medicineId) {
+            let updatedBatches = med.batches ? [...med.batches] : [];
+            if (adjustmentData.batchNumber && updatedBatches.length > 0) {
+              const batchIdx = updatedBatches.findIndex(
+                (b) => b.batchNumber.toLowerCase() === adjustmentData.batchNumber!.toLowerCase()
+              );
+              if (batchIdx >= 0) {
+                const curBatchQty = updatedBatches[batchIdx].quantity;
+                const newBatchQty = Math.max(0, curBatchQty + adjustmentData.adjustedQuantity);
+                updatedBatches[batchIdx] = {
+                  ...updatedBatches[batchIdx],
+                  quantity: newBatchQty,
+                };
+              }
+            }
+            return {
+              ...med,
+              stock: newStock,
+              batches: updatedBatches,
+            };
+          }
+          return med;
+        })
+      );
+    }
+
+    const now = new Date();
+    const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(
+      2,
+      "0"
+    )}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+    const newRecord: StockAdjustment = {
+      id: `adj-${Date.now()}`,
+      timestamp: formattedTimestamp,
+      medicineId: adjustmentData.medicineId,
+      medicineName: adjustmentData.medicineName || targetMed?.name || "Unknown Medicine",
+      genericName: adjustmentData.genericName || targetMed?.genericName,
+      category: adjustmentData.category || targetMed?.category,
+      batchNumber: adjustmentData.batchNumber || "All Batches",
+      adjustmentType: adjustmentData.adjustmentType,
+      previousStock: prevStock,
+      adjustedQuantity: adjustmentData.adjustedQuantity,
+      newStock: newStock,
+      unit: adjustmentData.unit || targetMed?.dosageForm || "Unit",
+      reason: adjustmentData.reason,
+      performedBy: adjustmentData.performedBy || (currentUser ? currentUser.name : `${currentRole} User`),
+      userRole: adjustmentData.userRole || currentRole,
+      branchId: adjustmentData.branchId || currentBranch.id,
+      branchName: adjustmentData.branchName || currentBranch.name,
+      referenceNumber:
+        adjustmentData.referenceNumber ||
+        `ADJ-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      notes: adjustmentData.notes,
+    };
+
+    setStockAdjustments((prev) => [newRecord, ...prev]);
+
+    const changeSign =
+      adjustmentData.adjustedQuantity > 0
+        ? `+${adjustmentData.adjustedQuantity}`
+        : `${adjustmentData.adjustedQuantity}`;
+    addAuditLog(
+      "Manual Stock Adjustment",
+      `Adjusted ${newRecord.medicineName} (Batch: ${newRecord.batchNumber}): ${prevStock} ➔ ${newStock} (${changeSign} ${newRecord.unit}). Reason: ${newRecord.reason} (By: ${newRecord.performedBy})`
+    );
+
+    return newRecord;
   };
 
   const deleteMedicine = (id: string) => {
@@ -1324,6 +1575,9 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   return (
     <PharmacyContext.Provider
       value={{
+        language,
+        setLanguage,
+        t,
         currentRole,
         setCurrentRole,
         currentBranch,
@@ -1336,6 +1590,13 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         toggleDarkMode,
         medicines,
         categories,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        dispensingUnits,
+        addDispensingUnit,
+        updateDispensingUnit,
+        deleteDispensingUnit,
         suppliers,
         customers,
         prescriptions,
@@ -1344,6 +1605,8 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         transfers,
         financials,
         auditLogs,
+        stockAdjustments,
+        adjustStock,
         settings,
         attendanceRecords,
         payrollProfiles,

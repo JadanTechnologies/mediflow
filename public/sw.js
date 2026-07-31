@@ -110,14 +110,31 @@ self.addEventListener('fetch', (event) => {
 
 // 4. Background Sync Event (When internet connection recovers)
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-offline-sales') {
-    console.log('[Service Worker] Background sync triggered: Syncing offline pharmacy sales...');
+  const recognizedTags = ['sync-offline-sales', 'sync-mediflow-pos', 'sync-credit-sales', 'sync-held-invoices'];
+  if (recognizedTags.includes(event.tag)) {
+    console.log(`[Service Worker] Background sync triggered (${event.tag}): Reconciling queued transactions...`);
     event.waitUntil(
-      self.clients.matchAll().then((clients) => {
+      self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
         clients.forEach((client) => {
-          client.postMessage({ type: 'MEDIFLOW_SYNC_OFFLINE_SALES' });
+          client.postMessage({
+            type: 'MEDIFLOW_SYNC_OFFLINE_SALES',
+            tag: event.tag,
+            timestamp: new Date().toISOString()
+          });
         });
       })
     );
+  }
+});
+
+// 5. Message Event: Receive requests from client app
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data.type === 'REGISTER_BACKGROUND_SYNC') {
+    if ('sync' in self.registration) {
+      self.registration.sync.register(event.data.tag || 'sync-offline-sales')
+        .then(() => console.log('[Service Worker] Background sync tag registered:', event.data.tag || 'sync-offline-sales'))
+        .catch((err) => console.warn('[Service Worker] Sync registration error:', err));
+    }
   }
 });

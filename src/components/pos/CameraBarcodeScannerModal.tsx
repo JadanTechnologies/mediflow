@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Medicine } from "../../types/pharmacy";
+import { playBarcodeScanSuccessChime, playErrorSound } from "../../utils/audio";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 import {
   Camera,
   X,
@@ -85,7 +87,9 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     const foundMed = findMedicineByCode(decodedText);
 
     if (foundMed) {
-      playBeepSound();
+      if (soundEnabled) {
+        playBarcodeScanSuccessChime();
+      }
       setLastScannedItem(foundMed);
       setErrorMessage("");
       onScanSuccess(foundMed, decodedText);
@@ -95,6 +99,9 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
         onClose();
       }
     } else {
+      if (soundEnabled) {
+        playErrorSound();
+      }
       setErrorMessage(`Barcode "${decodedText}" not matched to any medicine in inventory.`);
       setTimeout(() => setErrorMessage(""), 4000);
     }
@@ -218,7 +225,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col my-auto"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col my-auto printable-modal-content"
           >
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-slate-800/40">
@@ -239,15 +246,18 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  stopScanner();
-                  onClose();
-                }}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <ModalHeaderPrintButton size="sm" />
+                <button
+                  onClick={() => {
+                    stopScanner();
+                    onClose();
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Camera Viewport Area */}

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { usePharmacy } from "../../context/PharmacyContext";
 import { EndOfDayReport } from "../../types/pharmacy";
+import { ModalHeaderPrintButton } from "../ui/ModalHeaderPrintButton";
 import {
   X,
   Printer,
@@ -147,7 +148,7 @@ export const EndOfDayModal: React.FC<EndOfDayModalProps> = ({ isOpen, onClose })
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
-          className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto printable-modal-overlay"
         >
           <motion.div
             key="eod-modal"
@@ -155,7 +156,7 @@ export const EndOfDayModal: React.FC<EndOfDayModalProps> = ({ isOpen, onClose })
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 24 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col my-auto max-h-[90vh]"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col my-auto max-h-[90vh] printable-modal-content"
           >
             {/* Top Header */}
             <div className="p-4 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
@@ -206,6 +207,8 @@ export const EndOfDayModal: React.FC<EndOfDayModalProps> = ({ isOpen, onClose })
                     <span>EOD History ({endOfDayReports.length})</span>
                   </button>
                 </div>
+
+                <ModalHeaderPrintButton variant="floating" size="sm" />
 
                 <button
                   onClick={onClose}

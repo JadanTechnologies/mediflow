@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @keyframes modalFadeIn {
   from {
     opacity: 0;
@@ -28,7 +30,17 @@
   animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@page {
+  margin: 10mm;
+  size: portrait;
+}
+
 @media print {
+  /* Force light color scheme for paper output */
+  :root, .dark {
+    color-scheme: light !important;
+  }
+
   /* Reset body background, text color, and layout for paper printing */
   html, body, #root {
     background: #ffffff !important;
@@ -38,57 +50,58 @@
     overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Hide standard UI components during print */
+  /* Default print isolation: hide everything on page first */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Make only designated printable containers and their descendants visible */
+  .printable-modal-content,
+  .printable-modal-content *,
+  .printable-area,
+  .printable-area *,
+  .printable-report,
+  .printable-report *,
+  .thermal-receipt-paper,
+  .thermal-receipt-paper *,
+  .a4-receipt-paper,
+  .a4-receipt-paper * {
+    visibility: visible !important;
+  }
+
+  /* Position printable elements cleanly at top-left of the printed paper */
+  .printable-modal-content,
+  .printable-area,
+  .printable-report,
+  .thermal-receipt-paper,
+  .a4-receipt-paper {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hide navigation, overlays, buttons, and control elements */
   aside,
   header,
   nav,
   .print\:hidden,
   button,
-  input,
+  input:not([type="checkbox"]),
   select,
   .no-print {
     display: none !important;
-  }
-
-  /* Un-clamp scrollable main containers so full report or receipt prints */
-  main,
-  .overflow-y-auto,
-  .overflow-x-auto,
-  .overflow-hidden {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-    min-height: 0 !important;
-    position: static !important;
-  }
-
-  /* Modal overlay reset for printable dialogs */
-  .printable-modal-overlay {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    background: #ffffff !important;
-    backdrop-filter: none !important;
-    display: block !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    z-index: 9999 !important;
-  }
-
-  .printable-modal-content {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    background: #ffffff !important;
-    color: #000000 !important;
   }
 
   /* Specific Thermal Paper 80mm Roll Container */
@@ -102,25 +115,23 @@
     line-height: 1.25 !important;
     color: #000000 !important;
     background: #ffffff !important;
-    border: none !important;
   }
 
   /* Specific A4 Paper Container */
-  .a4-receipt-paper {
+  .a4-receipt-paper, .printable-report {
     width: 100% !important;
     max-width: 210mm !important;
     margin: 0 auto !important;
-    padding: 8mm !important;
+    padding: 4mm !important;
     font-family: system-ui, -apple-system, sans-serif !important;
     font-size: 12px !important;
     line-height: 1.4 !important;
     color: #000000 !important;
     background: #ffffff !important;
-    border: none !important;
   }
 
-  /* Ensure tables and rows don't awkwardly split mid-line across page breaks */
-  tr, table, blockquote, pre {
+  /* Prevent row and table orphans across page breaks */
+  tr, table, blockquote, pre, .print-keep-together {
     page-break-inside: avoid;
   }
 }

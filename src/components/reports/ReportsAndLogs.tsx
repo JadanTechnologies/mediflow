@@ -73,7 +73,7 @@ export const ReportsAndLogs: React.FC = () => {
       acc.totalRevenue += s.grandTotal || 0;
       acc.totalSubtotal += s.subtotal || 0;
       acc.totalTax += s.taxAmount || 0;
-      acc.totalDiscount += s.discount || 0;
+      acc.totalDiscount += s.totalDiscount || 0;
       acc.totalCost += saleCost;
       acc.totalNetProfit += (s.grandTotal || 0) - saleCost;
       return acc;
@@ -167,7 +167,7 @@ export const ReportsAndLogs: React.FC = () => {
           "Estimated Cost Price (NGN)": estCost.toFixed(2),
           "Selling Subtotal (NGN)": s.subtotal.toFixed(2),
           "Tax NGN": s.taxAmount.toFixed(2),
-          "Discount NGN": (s.discount || 0).toFixed(2),
+          "Discount NGN": (s.totalDiscount || 0).toFixed(2),
           "Grand Total (NGN)": s.grandTotal.toFixed(2),
           "Net Profit (NGN)": (s.grandTotal - estCost).toFixed(2),
         };
@@ -179,7 +179,7 @@ export const ReportsAndLogs: React.FC = () => {
         Date: "-",
         "Customer / Patient": `${salesTotals.totalInvoices} Transactions`,
         Cashier: "-",
-        "Payment Method": "-",
+        "Payment Method": "Cash" as const,
         "Items Count": 0,
         "Estimated Cost Price (NGN)": salesTotals.totalCost.toFixed(2),
         "Selling Subtotal (NGN)": salesTotals.totalSubtotal.toFixed(2),
@@ -201,7 +201,7 @@ export const ReportsAndLogs: React.FC = () => {
           "Medicine Name": m.name,
           "Generic Name": m.genericName,
           Category: m.category,
-          "Batch #": m.batchNumber || "DEFAULT",
+          "Batch #": m.batches?.[0]?.batchNumber || "DEFAULT",
           "Stock Quantity": m.stock,
           "Unit Cost Price (NGN)": m.purchasePrice.toFixed(2),
           "Unit Selling Price (NGN)": m.sellingPrice.toFixed(2),
@@ -856,8 +856,8 @@ export const ReportsAndLogs: React.FC = () => {
 
       {/* ITEMIZE SALE INVOICE DETAIL MODAL */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 printable-modal-overlay">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200 printable-modal-content">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md">

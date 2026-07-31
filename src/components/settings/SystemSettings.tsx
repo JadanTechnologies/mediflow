@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { usePharmacy } from "../../context/PharmacyContext";
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../../i18n/translations";
 import { PermissionKey, UserRole, RoleDefinition, SystemUser, Currency } from "../../types/pharmacy";
 import { ALL_PERMISSIONS } from "../../data/mockData";
+import { CategoryManagerModal } from "../inventory/CategoryManagerModal";
+import { UnitManagerModal } from "../inventory/UnitManagerModal";
 import {
   Settings,
   Building2,
@@ -31,6 +34,9 @@ import {
   FileCheck,
   FileText,
   RotateCcw,
+  FolderPlus,
+  PackagePlus,
+  Sparkles,
 } from "lucide-react";
 
 export const SystemSettings: React.FC = () => {
@@ -54,6 +60,7 @@ export const SystemSettings: React.FC = () => {
     isLoading,
     medicines,
     categories,
+    dispensingUnits,
     suppliers,
     customers,
     prescriptions,
@@ -65,9 +72,14 @@ export const SystemSettings: React.FC = () => {
     restoreSystemState,
     resetToDefaultSeedData,
     setActiveTab: setGlobalActiveTab,
+    language,
+    setLanguage,
+    t,
   } = usePharmacy();
 
   const [activeTab, setActiveTab] = useState<"GENERAL" | "BRANDING" | "CURRENCY" | "RBAC" | "STAFF" | "BRANCHES" | "BACKUP">("GENERAL");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showUnitModal, setShowUnitModal] = useState(false);
 
   // Form states
   const [generalForm, setGeneralForm] = useState({
@@ -84,6 +96,7 @@ export const SystemSettings: React.FC = () => {
 
   const [brandingForm, setBrandingForm] = useState({
     logoUrl: settings.logoUrl || "",
+    posAccentColor: settings.posAccentColor || "#2563eb",
     receiptHeaderMessage: settings.receiptHeaderMessage || "",
     receiptFooterMessage: settings.receiptFooterMessage || "",
     reportHeaderNote: settings.reportHeaderNote || "",
@@ -121,8 +134,8 @@ export const SystemSettings: React.FC = () => {
   const handleSaveBranding = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettings(brandingForm);
-    addAuditLog("Branding Updated", "Updated pharmacy logo and print receipt/report custom headers & footers.");
-    alert("Pharmacy Logo and Print Receipt/Report branding updated successfully!");
+    addAuditLog("Branding Updated", `Updated pharmacy logo, primary POS accent color (${brandingForm.posAccentColor}), and custom print receipt/report headers & footers.`);
+    alert("Pharmacy Logo, POS Brand Accent Color, and Receipt/Report branding updated successfully!");
   };
 
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -542,6 +555,50 @@ export const SystemSettings: React.FC = () => {
                 </select>
               </div>
 
+              {/* Regional i18n Language Selector */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <label className="font-bold block mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                    <Globe className="h-4 w-4 text-blue-600" />
+                    <span>{t("settings.language")}</span>
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                    i18n Active
+                  </span>
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Select default language for POS terminal, navigation, receipts, and reports. Supports RTL layout for Arabic.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                  {SUPPORTED_LANGUAGES.map((langOpt) => {
+                    const isSelected = language === langOpt.code;
+                    return (
+                      <button
+                        type="button"
+                        key={langOpt.code}
+                        onClick={() => setLanguage(langOpt.code)}
+                        className={`p-2.5 rounded-2xl border text-left text-xs transition-all flex items-center justify-between ${
+                          isSelected
+                            ? "bg-blue-600 border-blue-600 text-white font-black shadow-sm"
+                            : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-400"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{langOpt.flag}</span>
+                          <div>
+                            <p className="font-bold leading-none">{langOpt.nativeName}</p>
+                            <p className={`text-[9px] mt-0.5 ${isSelected ? "text-blue-100" : "text-slate-400"}`}>
+                              {langOpt.name}
+                            </p>
+                          </div>
+                        </div>
+                        {isSelected && <CheckCircle2 className="h-4 w-4 text-white shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="pt-3">
                 <button
                   type="submit"
@@ -549,6 +606,51 @@ export const SystemSettings: React.FC = () => {
                 >
                   <Save className="h-4 w-4" />
                   <span>Save General Configuration</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Categories & Dispensing Units ERP Management */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-teal-50 dark:from-purple-950/30 dark:to-teal-950/30 border border-purple-200/80 dark:border-purple-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <FolderPlus className="h-4 w-4 text-purple-600" />
+                    <span>Inventory Categories & Dispensing Units</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Configure therapeutic categories and dispensing units (UOM) for inventory classification
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(true)}
+                  className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-900/80 text-purple-700 dark:text-purple-300 font-extrabold text-xs hover:border-purple-400 transition-all flex items-center justify-between shadow-2xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <FolderPlus className="h-4 w-4 text-purple-600" />
+                    <span>Manage Categories</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-black">
+                    {categories.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowUnitModal(true)}
+                  className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-900/80 text-teal-700 dark:text-teal-300 font-extrabold text-xs hover:border-teal-400 transition-all flex items-center justify-between shadow-2xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <PackagePlus className="h-4 w-4 text-teal-600" />
+                    <span>Manage Units & UOM</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-black">
+                    {dispensingUnits.length}
+                  </span>
                 </button>
               </div>
             </div>
@@ -666,6 +768,106 @@ export const SystemSettings: React.FC = () => {
                         Reset Default SVG Logo
                       </button>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* POS Interface Accent Color Branding Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
+                      POS Terminal Primary Brand Accent Color
+                    </h3>
+                  </div>
+                  <span
+                    className="text-[10px] font-black text-white px-2.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
+                    style={{ backgroundColor: brandingForm.posAccentColor }}
+                  >
+                    Active Accent
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Select or input your pharmacy's primary brand accent color. This custom theme will automatically style the POS checkout buttons, cart badges, active search highlights, and terminal controls to match your pharmacy's brand identity.
+                </p>
+
+                {/* Color Palette Swatches */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">
+                    Preset Pharmacy Brand Palettes
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {[
+                      { name: "Royal Blue", hex: "#2563eb", desc: "Corporate" },
+                      { name: "Medical Emerald", hex: "#059669", desc: "Clinical & Wellness" },
+                      { name: "Deep Violet", hex: "#7c3aed", desc: "Premium" },
+                      { name: "Crimson Red", hex: "#dc2626", desc: "Urgent Pharma" },
+                      { name: "Warm Amber", hex: "#d97706", desc: "Apothecary" },
+                      { name: "Clinical Teal", hex: "#0d9488", desc: "Modern Care" },
+                      { name: "Indigo Blue", hex: "#4f46e5", desc: "Hospital Enterprise" },
+                      { name: "Dark Slate", hex: "#0f172a", desc: "Minimalist" },
+                    ].map((swatch) => {
+                      const isSelected = brandingForm.posAccentColor.toLowerCase() === swatch.hex.toLowerCase();
+                      return (
+                        <button
+                          type="button"
+                          key={swatch.hex}
+                          onClick={() => setBrandingForm({ ...brandingForm, posAccentColor: swatch.hex })}
+                          className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
+                            isSelected
+                              ? "border-2 shadow-md ring-2 ring-offset-1 dark:ring-offset-slate-900"
+                              : "border-slate-200 dark:border-slate-800 hover:border-slate-400 bg-slate-50 dark:bg-slate-800/50"
+                          }`}
+                          style={{
+                            borderColor: isSelected ? swatch.hex : undefined,
+                          }}
+                        >
+                          <span
+                            className="w-5 h-5 rounded-full shrink-0 shadow-xs border border-white/20"
+                            style={{ backgroundColor: swatch.hex }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-[11px] text-slate-900 dark:text-slate-100 truncate">
+                              {swatch.name}
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-mono truncate">{swatch.hex}</p>
+                          </div>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Color Picker & Hex Input */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      Custom Picker:
+                    </label>
+                    <input
+                      type="color"
+                      value={brandingForm.posAccentColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, posAccentColor: e.target.value })}
+                      className="w-9 h-9 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 cursor-pointer shrink-0"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full flex-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      Hex Code:
+                    </label>
+                    <input
+                      type="text"
+                      value={brandingForm.posAccentColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, posAccentColor: e.target.value })}
+                      placeholder="#2563eb"
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
+                    />
                   </div>
                 </div>
               </div>
@@ -838,6 +1040,62 @@ export const SystemSettings: React.FC = () => {
                 <p className="text-slate-200 italic font-mono">
                   {brandingForm.reportFooterNote || "Confidential Pharmacy Enterprise Audit Statement"}
                 </p>
+              </div>
+
+              {/* Live POS Brand Accent Theme Terminal Preview */}
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 font-sans">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                  <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 text-slate-300">
+                    <Sparkles className="h-3.5 w-3.5" style={{ color: brandingForm.posAccentColor }} /> POS Theme Terminal Preview
+                  </span>
+                  <span
+                    className="text-[9px] text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs"
+                    style={{ backgroundColor: brandingForm.posAccentColor }}
+                  >
+                    Accent Active
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-5 h-5 rounded-md text-white font-black text-[9px] flex items-center justify-center shadow-xs"
+                        style={{ backgroundColor: brandingForm.posAccentColor }}
+                      >
+                        POS
+                      </div>
+                      <span className="font-bold text-[10px] text-slate-200 truncate max-w-[130px]">{generalForm.companyName || "MediFlow Pharmacy"}</span>
+                    </div>
+                    <span
+                      className="px-2 py-0.5 rounded text-[9px] font-bold text-white shadow-2xs"
+                      style={{ backgroundColor: brandingForm.posAccentColor }}
+                    >
+                      Ctrl+K Search
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-[10px] text-slate-100">Augmentin 625mg Tab</p>
+                      <p className="text-[9px] text-slate-400">GSK • Stock: 180</p>
+                    </div>
+                    <span
+                      className="px-2 py-1 rounded-lg text-white font-extrabold text-[9px] shadow-2xs"
+                      style={{ backgroundColor: brandingForm.posAccentColor }}
+                    >
+                      + Add to Cart
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="w-full py-2 rounded-xl text-white font-extrabold text-[11px] shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                    style={{ backgroundColor: brandingForm.posAccentColor }}
+                  >
+                    <span>Checkout & Pay ₦24,500.00</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1801,6 +2059,18 @@ export const SystemSettings: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Category Manager Modal */}
+      <CategoryManagerModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+      />
+
+      {/* Dispensing Unit Manager Modal */}
+      <UnitManagerModal
+        isOpen={showUnitModal}
+        onClose={() => setShowUnitModal(false)}
+      />
     </div>
   );
 };
